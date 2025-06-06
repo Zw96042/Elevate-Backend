@@ -1,95 +1,24 @@
-import axios from 'axios';
 import fs from 'fs';
+import path from 'path';
 import { parse } from 'node-html-parser';
 
-export async function fetchAllMessages(baseURL, sessionCodes) {
-  let allMessagesHtml = '';
-  let lastMessageId = null;
-  let keepLoading = true;
+async function testParse() {
+  try {
+    const filePath = path.resolve('./debug_logs/full_input.html');
+    const html = fs.readFileSync(filePath, 'utf8');
 
-  // Initial fetch
-  const initialPostData = new URLSearchParams({ ...sessionCodes });
-  const initialUrl = baseURL + 'sfhome01.w';
-  const initialResponse = await axios.post(initialUrl, initialPostData.toString(), {
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  });
+    const messages = parseMessages(html);
 
-  if (initialResponse.data.includes('Your session has expired')) {
-    throw new Error('Session expired');
+    console.log('Parsed messages output:');
+    console.log(JSON.stringify(messages, null, 2));
+
+    console.log(`Total messages parsed: ${messages.length}`);
+  } catch (err) {
+    console.error('Error during parsing test:', err);
   }
-
-  allMessagesHtml += initialResponse.data;
-  lastMessageId = extractLastMessageId(initialResponse.data);
-
-  while (keepLoading && lastMessageId) {
-    const postData = new URLSearchParams({
-      action: 'moreMessages',
-      lastMessageRowId: lastMessageId,
-      ishttp: 'true',
-      sessionid: sessionCodes.sessionid,
-      encses: sessionCodes.encses,
-      dwd: sessionCodes.dwd,
-      wfaacl: sessionCodes.wfaacl,
-      'javascript.filesAdded': 'jquery.1.8.2.js,qsfmain001.css,sfhome001.css,qsfmain001.min.js,sfhome001.js',
-      requestId: Date.now().toString(),
-    });
-
-    const url = `${baseURL}httploader.p?file=sfhome01.w`;
-
-    const headers = {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Origin': 'https://skyward-eisdprod.iscorp.com',
-      'Referer': `${baseURL}sfhome01.w`,
-      'X-Requested-With': 'XMLHttpRequest',
-      'User-Agent': 'Mozilla/5.0 (compatible; BetterSkywardClient/1.0)',
-    };
-
-    const resp = await axios.post(url, postData.toString(), { headers });
-
-    console.log(`Load more messages response length: ${resp.data.length}`);
-    console.log(`Response snippet: ${resp.data.slice(0, 300).replace(/\n/g, ' ')}`);
-
-    if (!resp.data || resp.data.trim().length === 0) {
-      keepLoading = false;
-    } else {
-      allMessagesHtml += resp.data;
-      const newLastId = extractLastMessageId(resp.data);
-      if (!newLastId || newLastId === lastMessageId) {
-        keepLoading = false;
-      } else {
-        lastMessageId = newLastId;
-      }
-    }
-    console.log('Fetching more messages after lastMessageId:', lastMessageId);
-  }
-
-  return allMessagesHtml;
 }
 
-
-function extractLastMessageId(rawResponse) {
-  const cdataMatch = rawResponse.match(/<output><!\[CDATA\[(.*?)\]\]><\/output>/s);
-  let htmlFragment = rawResponse;
-  if (cdataMatch && cdataMatch[1]) {
-    htmlFragment = cdataMatch[1];
-  }
-
-  const root = parse(htmlFragment);
-  const messages = root.querySelectorAll('li.feedItem.allowRemove');
-  if (messages.length === 0) return null;
-
-  const ids = messages.map(msg => {
-    const wrap = msg.querySelector('.messageWrap');
-    return wrap ? wrap.getAttribute('data-wall-id') : null;
-  });
-  console.log('Found message data-wall-ids in batch:', ids);
-
-  const lastMsg = messages[messages.length - 1];
-  const msgWrap = lastMsg.querySelector('.messageWrap');
-  return msgWrap ? msgWrap.getAttribute('data-wall-id') : null;
-}
-
-export function parseMessages(html) {
+function parseMessages(html) {
   const root = parse(html);
 
   // Map to hold content pieces keyed by spanId
@@ -125,6 +54,10 @@ export function parseMessages(html) {
     const msgWrap = li.querySelector('.messageWrap');
     if (!msgWrap) return;
 
+    // Extract sender name
+    const fromLink = msgWrap.querySelector('.messageHead > .text > a[data-type="teacher"]');
+    const from = fromLink ? fromLink.text.trim() : '';
+
     const rawClassAttr = msgWrap.getAttribute('class') || '';
 
     // Extract class name or fallback to Administrator
@@ -138,9 +71,6 @@ export function parseMessages(html) {
     } else if (rawClassAttr.includes('message_general')) {
       className = 'Administrator';
     }
-
-    const fromLink = msgWrap.querySelector('.messageHead > .text > a[data-type="teacher"]');
-    const from = fromLink ? fromLink.text.trim() : (className === 'Administrator' ? 'Administrator' : '');
 
     // Extract date string
     const dateElem = msgWrap.querySelector('.messageBody > .date');
@@ -182,3 +112,5 @@ export function parseMessages(html) {
   console.log(`Parsed ${messages.length} messages.`);
   return messages;
 }
+
+testParse();

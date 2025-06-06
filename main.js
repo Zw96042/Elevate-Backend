@@ -1,4 +1,4 @@
-import { fetchMessages, parseMessages } from './src/messages.js';
+import { fetchAllMessages, parseMessages } from './src/messages.js';
 import 'dotenv/config';
 import fs from 'fs';
 import { parse } from 'node-html-parser';
@@ -33,7 +33,7 @@ const SESSION_FILE = 'session_codes.json';
     if (MODE === 'grades') {
       html = await fetchGradebook(baseURL, sessionCodes);
     } else {
-      html = await fetchMessages(baseURL, sessionCodes);
+      html = await fetchAllMessages(baseURL, sessionCodes);
     }
 
     if (html.includes('Your session has expired and you have been logged out.')) {
@@ -48,7 +48,7 @@ const SESSION_FILE = 'session_codes.json';
 
     const html = MODE === 'grades'
       ? await fetchGradebook(baseURL, sessionCodes)
-      : await fetchMessages(baseURL, sessionCodes);
+      : await fetchAllMessages(baseURL, sessionCodes);
 
     await handleHtml(MODE, html, baseURL, sessionCodes);
   }
@@ -56,7 +56,6 @@ const SESSION_FILE = 'session_codes.json';
 
 async function handleHtml(mode, html, baseURL, sessionCodes) {
   if (mode === 'grades') {
-    // fs.writeFileSync('gradebook_full.html', html);
     const gridObjects = extractSfGridObjectsFromExtend(html);
     const gradeGridKey = Object.keys(gridObjects).find(k => k.toLowerCase().includes('stugrades'));
     const gradeGrid = gridObjects[gradeGridKey];
@@ -65,11 +64,10 @@ async function handleHtml(mode, html, baseURL, sessionCodes) {
     const annotated = annotateGradesWithCourseNames(simplifiedGrades, allTables);
     const organized = organizeGradesByCourse(annotated);
     fs.writeFileSync('organized_grades_by_course.json', JSON.stringify(organized, null, 2));
-    // console.log('Saved grades.');
   } else {
-    // fs.writeFileSync('messages_raw.html', html);
+    fs.writeFileSync('raw_messages.html', html, 'utf8');
     const messages = parseMessages(html);
+    console.log(`Parsed ${messages.length} messages.`);
     fs.writeFileSync('parsed_messages.json', JSON.stringify(messages, null, 2));
-    // console.log('Saved messages.');
   }
 }

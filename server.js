@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
-import { fetchMessages, parseMessages } from './src/messages.js';
+import { fetchAllMessages, parseMessages } from './src/messages.js';
 import { getNewSessionCodes, fetchGradebook } from './src/auth.js';
 import { extractSfGridObjectsFromExtend } from './src/extract.js';
 import { parseGradebookRows, annotateGradesWithCourseNames, organizeGradesByCourse } from './src/grades.js';
@@ -77,7 +77,7 @@ app.post('/messages', async (req, res) => {
     }
 
     const sessionCodes = await getNewSessionCodes(user, pass, baseUrl);
-    const html = await fetchMessages(baseUrl, sessionCodes);
+    const html = await fetchAllMessages(baseUrl, sessionCodes);
     const messages = parseMessages(html);
 
     res.json(messages);
