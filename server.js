@@ -114,12 +114,21 @@ app.post('/messages', async (req, res) => {
     const codes = { dwd, encses, sessionid, wfaacl, 'User-Type': userType || '2' };
 
     const html = await fetchAllMessages(baseUrl, codes);
-    const messages = parseMessages(html);
 
+    if (html.includes('Your session has expired and you have been logged out.')) {
+      throw new Error('Session expired');
+    }
+
+    const messages = parseMessages(html);
     res.json(messages);
   } catch (err) {
-    console.error('Error fetching messages:', err);
-    res.status(500).json({ error: err.message });
+    if (err.message.includes('Session expired')) {
+        // throw new Error("Session Expired");
+      res.status(401).send({ error: 'Session expired. Please authenticate again.' });
+    } else {
+        // throw err;
+      res.status(500).send({ error: err.message });
+    }
   }
 });
 

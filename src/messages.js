@@ -3,6 +3,7 @@ import fs from 'fs';
 import { parse } from 'node-html-parser';
 
 export async function fetchAllMessages(baseURL, sessionCodes) {
+  console.log("Fetch message request")
   let allMessagesHtml = '';
   let lastMessageId = null;
   let keepLoading = true;
@@ -46,8 +47,8 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
 
     const resp = await axios.post(url, postData.toString(), { headers });
 
-    console.log(`Load more messages response length: ${resp.data.length}`);
-    console.log(`Response snippet: ${resp.data.slice(0, 300).replace(/\n/g, ' ')}`);
+    // console.log(`Load more messages response length: ${resp.data.length}`);
+    // console.log(`Response snippet: ${resp.data.slice(0, 300).replace(/\n/g, ' ')}`);
 
     if (!resp.data || resp.data.trim().length === 0) {
       keepLoading = false;
@@ -60,7 +61,7 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
         lastMessageId = newLastId;
       }
     }
-    console.log('Fetching more messages after lastMessageId:', lastMessageId);
+    // console.log('Fetching more messages after lastMessageId:', lastMessageId);
   }
 
   return allMessagesHtml;
@@ -82,7 +83,7 @@ function extractLastMessageId(rawResponse) {
     const wrap = msg.querySelector('.messageWrap');
     return wrap ? wrap.getAttribute('data-wall-id') : null;
   });
-  console.log('Found message data-wall-ids in batch:', ids);
+  // console.log('Found message data-wall-ids in batch:', ids);
 
   const lastMsg = messages[messages.length - 1];
   const msgWrap = lastMsg.querySelector('.messageWrap');
@@ -114,7 +115,7 @@ export function parseMessages(html) {
 
   // Log counts of content parts per spanId for debugging
   for (const [spanId, contentParts] of contentMap.entries()) {
-    console.log(`spanId ${spanId} has ${contentParts.length} content part(s)`);
+    // console.log(`spanId ${spanId} has ${contentParts.length} content part(s)`);
   }
 
   const messages = [];
