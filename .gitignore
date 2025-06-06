@@ -3,6 +3,8 @@ organized_grades_by_course.json
 annotated_grades.json
 session_codes.json
 gradebook_full.html
+parsed_messages.json
+messages_raw.html
 
 # Logs
 logs
