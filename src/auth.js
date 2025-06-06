@@ -45,6 +45,10 @@ function parsePostResponse(postResponse) {
   if (toks.length < 15) {
     // If not valid, parse as HTML and throw error text
     const root = parse(postResponse);
+
+    if (root.includes("invalid username or password")) {
+      throw new Error("Invalid user or pass, or locked account");
+    }
     throw new Error(root.text);
   }
 

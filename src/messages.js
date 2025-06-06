@@ -7,6 +7,7 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
   let allMessagesHtml = '';
   let lastMessageId = null;
   let keepLoading = true;
+  let count = 0;
 
   // Initial fetch
   const initialPostData = new URLSearchParams({ ...sessionCodes });
@@ -22,7 +23,7 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
   allMessagesHtml += initialResponse.data;
   lastMessageId = extractLastMessageId(initialResponse.data);
 
-  while (keepLoading && lastMessageId) {
+  while (keepLoading && lastMessageId && count < 3) {
     const postData = new URLSearchParams({
       action: 'moreMessages',
       lastMessageRowId: lastMessageId,
@@ -61,6 +62,7 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
         lastMessageId = newLastId;
       }
     }
+    count++;
     // console.log('Fetching more messages after lastMessageId:', lastMessageId);
   }
 
@@ -90,6 +92,51 @@ function extractLastMessageId(rawResponse) {
   return msgWrap ? msgWrap.getAttribute('data-wall-id') : null;
 }
 
+export async function fetchMessagesAfterId(baseURL, sessionCodes, startingId, limit = 10) {
+  const allHtml = [];
+  let lastMessageId = startingId;
+  let totalLoaded = 0;
+  let keepLoading = true;
+
+  while (keepLoading && lastMessageId && totalLoaded < limit) {
+    const postData = new URLSearchParams({
+      action: 'moreMessages',
+      lastMessageRowId: lastMessageId,
+      ishttp: 'true',
+      sessionid: sessionCodes.sessionid,
+      encses: sessionCodes.encses,
+      dwd: sessionCodes.dwd,
+      wfaacl: sessionCodes.wfaacl,
+      'javascript.filesAdded': 'jquery.1.8.2.js,qsfmain001.css,sfhome001.css,qsfmain001.min.js,sfhome001.js',
+      requestId: Date.now().toString(),
+    });
+
+    const url = `${baseURL}httploader.p?file=sfhome01.w`;
+    const headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Origin': 'https://skyward-eisdprod.iscorp.com',
+      'Referer': `${baseURL}sfhome01.w`,
+      'X-Requested-With': 'XMLHttpRequest',
+      'User-Agent': 'Mozilla/5.0 (compatible; BetterSkywardClient/1.0)',
+    };
+
+    const resp = await axios.post(url, postData.toString(), { headers });
+    if (!resp.data || resp.data.trim().length === 0) break;
+
+    allHtml.push(resp.data);
+
+    // Extract next ID
+    const newLastId = extractLastMessageId(resp.data);
+    if (!newLastId || newLastId === lastMessageId) break;
+
+    lastMessageId = newLastId;
+    totalLoaded += parseMessages(resp.data).length;
+  }
+
+  const combinedHtml = allHtml.join('');
+  return parseMessages(combinedHtml);
+}
+
 export function parseMessages(html) {
   const root = parse(html);
 
@@ -114,9 +161,9 @@ export function parseMessages(html) {
   }
 
   // Log counts of content parts per spanId for debugging
-  for (const [spanId, contentParts] of contentMap.entries()) {
-    // console.log(`spanId ${spanId} has ${contentParts.length} content part(s)`);
-  }
+  // for (const [spanId, contentParts] of contentMap.entries()) {
+  //   // console.log(`spanId ${spanId} has ${contentParts.length} content part(s)`);
+  // }
 
   const messages = [];
 
@@ -177,7 +224,9 @@ export function parseMessages(html) {
       }
     }
 
-    messages.push({ className, subject, from, date, content });
+    const messageRowId = msgWrap.getAttribute('data-wall-id');
+
+    messages.push({ className, messageRowId, subject, from, date, content });
   });
 
   console.log(`Parsed ${messages.length} messages.`);

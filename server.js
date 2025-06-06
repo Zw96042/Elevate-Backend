@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import 'dotenv/config';
-import { fetchAllMessages, parseMessages } from './src/messages.js';
+import { fetchAllMessages, parseMessages, fetchMessagesAfterId } from './src/messages.js';
 import { getNewSessionCodes, fetchGradebook } from './src/auth.js';
 import { extractSfGridObjectsFromExtend } from './src/extract.js';
 import { parseGradebookRows, annotateGradesWithCourseNames, organizeGradesByCourse } from './src/grades.js';
@@ -129,6 +129,25 @@ app.post('/messages', async (req, res) => {
         // throw err;
       res.status(500).send({ error: err.message });
     }
+  }
+});
+
+app.post('/next-messages', async (req, res) => {
+  try {
+    const { dwd, encses, sessionid, wfaacl, baseUrl, 'User-Type': userType, lastMessageId, limit } = req.body;
+
+    if (!dwd || !encses || !sessionid || !wfaacl || !baseUrl || !lastMessageId) {
+      return res.status(400).json({ error: 'Missing required fields in request body' });
+    }
+
+    const codes = { dwd, encses, sessionid, wfaacl, 'User-Type': userType || '2' };
+
+    const messages = await fetchMessagesAfterId(baseUrl, codes, lastMessageId, limit || 10);
+
+    res.json(messages);
+  } catch (err) {
+    console.error('Error fetching more messages:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
