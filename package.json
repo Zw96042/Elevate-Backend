@@ -9,7 +9,7 @@
     "i": "^0.3.7",
     "json5": "^2.2.3",
     "node-html-parser": "^7.0.1",
-    "parse": "^3.5.1",
+    "parse": "^2.2.1",
     "puppeteer": "^24.9.0",
     "tough-cookie": "^5.1.2"
   },

@@ -23,11 +23,10 @@ export async function getNewSessionCodes(user, pass, baseURL) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
-  console.log("Login response:", response.data); // <== Add this line
+  console.log("Login response:", response.data); // Useful for debugging
 
   return parsePostResponse(response.data);
 }
-
 
 /**
  * Parse login response string.
@@ -38,14 +37,18 @@ export async function getNewSessionCodes(user, pass, baseURL) {
  */
 function parsePostResponse(postResponse) {
   if (!postResponse) return null;
+
+  // Dissect response assuming format: first 4 and last 5 chars are extraneous
   const dissectedString = postResponse.substring(4, postResponse.length - 5);
   const toks = dissectedString.split('^');
 
   if (toks.length < 15) {
+    // If not valid, parse as HTML and throw error text
     const root = parse(postResponse);
     throw new Error(root.text);
   }
 
+  // Return structured session codes
   return {
     dwd: toks[0],
     wfaacl: toks[3],
