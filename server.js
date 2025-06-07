@@ -151,6 +151,6 @@ app.post('/next-messages', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Skyward backend API listening on port ${PORT}`);
 });
