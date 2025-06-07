@@ -72,6 +72,14 @@ app.post('/auth', async (req, res) => {
   }
 });
 
+app.post('/test', async (req, res) => {
+  try {
+    res.send("Test");
+  } catch (err) {
+    console.error('Error authenticating:', err);
+  }
+});
+
 // Grades endpoint
 app.get('/grades', async (req, res) => {
   try {

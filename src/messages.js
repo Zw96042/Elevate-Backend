@@ -23,7 +23,7 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
   allMessagesHtml += initialResponse.data;
   lastMessageId = extractLastMessageId(initialResponse.data);
 
-  while (keepLoading && lastMessageId && count < 3) {
+  while (keepLoading && lastMessageId && count < 4) {
     const postData = new URLSearchParams({
       action: 'moreMessages',
       lastMessageRowId: lastMessageId,
