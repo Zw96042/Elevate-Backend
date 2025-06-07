@@ -23,7 +23,7 @@ export async function getNewSessionCodes(user, pass, baseURL) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
-  console.log("Login response:", response.data); // Useful for debugging
+  // console.log("Login response:", response.data); // Useful for debugging
 
   return parsePostResponse(response.data);
 }

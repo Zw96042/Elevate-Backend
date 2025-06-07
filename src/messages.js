@@ -122,6 +122,10 @@ export async function fetchMessagesAfterId(baseURL, sessionCodes, startingId, li
 
     const resp = await axios.post(url, postData.toString(), { headers });
     if (!resp.data || resp.data.trim().length === 0) break;
+    // console.log(resp.data);
+    if (resp.data.includes("logout")) {
+      throw new Error("Session Expired");
+    }
 
     allHtml.push(resp.data);
 
@@ -229,6 +233,6 @@ export function parseMessages(html) {
     messages.push({ className, messageRowId, subject, from, date, content });
   });
 
-  console.log(`Parsed ${messages.length} messages.`);
+  // console.log(`Parsed ${messages.length} messages.`);
   return messages;
 }

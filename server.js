@@ -17,6 +17,8 @@ app.use(express.json());  // Parse JSON request bodies
 
 let sessionCodes = null;
 
+
+
 // Load session codes if available
 async function loadSessionCodes() {
   if (sessionCodes) return sessionCodes;
@@ -57,7 +59,10 @@ async function getValidSession(user, pass, baseUrl) {
 // Auth endpoint
 app.post('/auth', async (req, res) => {
   try {
+    
     const { user, pass, baseUrl } = req.body;
+    const now = new Date();
+    console.log("Auth request for", user, "at", now.toLocaleString());
 
     if (!user || !pass || !baseUrl) {
       return res.status(400).json({ error: 'Missing user, pass, or baseUrl in request body' });
@@ -72,17 +77,11 @@ app.post('/auth', async (req, res) => {
   }
 });
 
-app.post('/test', async (req, res) => {
-  try {
-    res.send("Test");
-  } catch (err) {
-    console.error('Error authenticating:', err);
-  }
-});
-
 // Grades endpoint
 app.get('/grades', async (req, res) => {
   try {
+    const now = new Date();
+    console.log("Grade request at", now.toLocaleString());
     const user = process.env.SKYWARD_USER;
     const pass = process.env.SKYWARD_PASS;
     const baseUrl = process.env.SKYWARD_BASEURL;
@@ -113,6 +112,8 @@ app.get('/grades', async (req, res) => {
 // Messages endpoint - updated to accept session codes instead of user/pass
 app.post('/messages', async (req, res) => {
   try {
+    const now = new Date();
+    console.log("Initial message request at", now.toLocaleString());
     const { dwd, encses, sessionid, wfaacl, baseUrl, 'User-Type': userType } = req.body;
 
     if (!dwd || !encses || !sessionid || !wfaacl || !baseUrl) {
@@ -142,6 +143,8 @@ app.post('/messages', async (req, res) => {
 
 app.post('/next-messages', async (req, res) => {
   try {
+    const now = new Date();
+    console.log("More message request at", now.toLocaleString());
     const { dwd, encses, sessionid, wfaacl, baseUrl, 'User-Type': userType, lastMessageId, limit } = req.body;
 
     if (!dwd || !encses || !sessionid || !wfaacl || !baseUrl || !lastMessageId) {
@@ -154,8 +157,13 @@ app.post('/next-messages', async (req, res) => {
 
     res.json(messages);
   } catch (err) {
-    console.error('Error fetching more messages:', err);
-    res.status(500).json({ error: err.message });
+    if (err.message.includes('Session expired')) {
+        // throw new Error("Session Expired");
+      res.status(401).send({ error: 'Session expired. Please authenticate again.' });
+    } else {
+        // throw err;
+      res.status(500).send({ error: err.message });
+    }
   }
 });
 
