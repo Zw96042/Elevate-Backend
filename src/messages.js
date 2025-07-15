@@ -156,9 +156,24 @@ export function parseMessages(html) {
     const fullHtml = match[1];
     const spanId = match[2];
 
-    // Parse and extract text content
+    // Parse and extract text content with formatting
     const parsed = parse(`<div class='msgDetail'>${fullHtml}</div>`);
-    const cleaned = parsed.querySelector('.msgDetail').innerText.trim();
+    const msgElem = parsed.querySelector('.msgDetail');
+
+    // Convert list items to a placeholder bullet format
+    msgElem && msgElem.querySelectorAll('li').forEach(li => {
+      li.insertAdjacentHTML('beforebegin', '• ');
+      li.insertAdjacentHTML('afterend', '\n');
+    });
+
+    // Add line breaks between divs
+    msgElem && msgElem.querySelectorAll('div').forEach(div => {
+      div.insertAdjacentHTML('afterend', '\n');
+    });
+
+    const cleaned = msgElem
+      ? msgElem.textContent.replace(/\r?\n\s*\r?\n/g, '\n').trim()
+      : '';
 
     if (!contentMap.has(spanId)) contentMap.set(spanId, []);
     contentMap.get(spanId).push({ content: cleaned, index: match.index });
