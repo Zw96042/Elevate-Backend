@@ -162,13 +162,13 @@ export function parseMessages(html) {
 
     // Convert list items to a placeholder bullet format
     msgElem && msgElem.querySelectorAll('li').forEach(li => {
-      li.insertAdjacentHTML('beforebegin', '• ');
+      li.insertAdjacentHTML('beforebegin', '\t• ');
       li.insertAdjacentHTML('afterend', '\n');
     });
 
     // Add line breaks between divs
     msgElem && msgElem.querySelectorAll('div').forEach(div => {
-      div.insertAdjacentHTML('afterend', '\n');
+      div.insertAdjacentHTML('afterend', '\n\n');
     });
 
     const cleaned = msgElem
