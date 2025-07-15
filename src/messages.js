@@ -160,16 +160,46 @@ export function parseMessages(html) {
     const parsed = parse(`<div class='msgDetail'>${fullHtml}</div>`);
     const msgElem = parsed.querySelector('.msgDetail');
 
+    // Preserve bold text using markdown ** **
+    msgElem && msgElem.querySelectorAll('b').forEach(b => {
+      b.insertAdjacentHTML('beforebegin', '**');
+      b.insertAdjacentHTML('afterend', '**');
+    });
+
     // Convert list items to a placeholder bullet format
     msgElem && msgElem.querySelectorAll('li').forEach(li => {
       li.insertAdjacentHTML('beforebegin', '\t• ');
       li.insertAdjacentHTML('afterend', '\n');
     });
 
-    // Add line breaks between divs
+
+    // Add line breaks between divs with improved spacing (use two newlines after block-level elements)
     msgElem && msgElem.querySelectorAll('div').forEach(div => {
-      div.insertAdjacentHTML('afterend', '\n\n');
+      const content = div.innerText.trim();
+      if (content === '&nbsp;') {
+        const next = div.nextElementSibling;
+        // console.log(next.textContent)
+        if (next) {
+          // console.log(next.textContent)
+          const nextText = next.textContent || '';
+          next.set_content('\\n' + nextText);
+        }
+        // div.remove();
+      } else {
+        div.insertAdjacentHTML('beforebegin', '\n\n');
+        div.insertAdjacentHTML('afterend', '\n\n');
+      }
     });
+
+    // Add extra spacing for <div> elements that are visually blank (contain only &nbsp;)
+    // msgElem && msgElem.querySelectorAll('div').forEach(div => {
+    //   const content = div.innerText.trim();
+    //   // console.log("Found item?");ß
+    //   // console.log(content);
+    //   if (content === '&nbsp;') {
+    //     div.set_content('\n\n');
+    //   }
+    // });
 
     const cleaned = msgElem
       ? msgElem.textContent.replace(/\r?\n\s*\r?\n/g, '\n').trim()
