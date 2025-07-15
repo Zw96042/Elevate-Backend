@@ -160,6 +160,15 @@ export function parseMessages(html) {
     const parsed = parse(`<div class='msgDetail'>${fullHtml}</div>`);
     const msgElem = parsed.querySelector('.msgDetail');
 
+    // Convert anchor tags to markdown-style [text](href)
+    msgElem && msgElem.querySelectorAll('a').forEach(a => {
+      const text = a.text.trim();
+      const href = a.getAttribute('href');
+      if (href) {
+        a.replaceWith(parse(`[${text}](${href})`));
+      }
+    });
+
     // Preserve bold text using markdown ** **
     msgElem && msgElem.querySelectorAll('b').forEach(b => {
       b.insertAdjacentHTML('beforebegin', '**');
