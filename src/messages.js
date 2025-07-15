@@ -176,18 +176,19 @@ export function parseMessages(html) {
     // Add line breaks between divs with improved spacing (use two newlines after block-level elements)
     msgElem && msgElem.querySelectorAll('div').forEach(div => {
       const content = div.innerText.trim();
-      if (content === '&nbsp;') {
-        const next = div.nextElementSibling;
-        // console.log(next.textContent)
-        if (next) {
-          // console.log(next.textContent)
-          const nextText = next.textContent || '';
-          next.set_content('\\n' + nextText);
-        }
-        // div.remove();
+      if (content === '\xa0' || content === '') {
+        div.replaceWith(parse('<div>__LINE_BREAK__</div>'));
       } else {
-        div.insertAdjacentHTML('beforebegin', '\n\n');
-        div.insertAdjacentHTML('afterend', '\n\n');
+        div.insertAdjacentHTML('afterend', '__LINE_BREAK__');
+      }
+    });
+
+    msgElem && msgElem.querySelectorAll('p').forEach(p => {
+      const content = p.innerText.trim();
+      if (content === '\xa0' || content === '') {
+        p.replaceWith(parse('<div>__LINE_BREAK__</div>'));
+      } else {
+        p.insertAdjacentHTML('afterend', '__LINE_BREAK__');
       }
     });
 
@@ -202,7 +203,7 @@ export function parseMessages(html) {
     // });
 
     const cleaned = msgElem
-      ? msgElem.textContent.replace(/\r?\n\s*\r?\n/g, '\n').trim()
+      ? msgElem.textContent.replace(/__LINE_BREAK__/g, '\n').replace(/\n{2,}/g, '\n\n').trim()
       : '';
 
     if (!contentMap.has(spanId)) contentMap.set(spanId, []);
