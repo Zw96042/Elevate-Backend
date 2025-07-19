@@ -16,7 +16,7 @@ export async function fetchAllMessages(baseURL, sessionCodes) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
-  if (initialResponse.data.includes('Your session has expired')) {
+  if (initialResponse.data.includes('Your session has expired') || initialResponse.data.includes('Your session has timed out')) {
     throw new Error('Session expired');
   }
 
