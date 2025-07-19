@@ -28,6 +28,7 @@ export async function getNewSessionCodes(user, pass, baseURL) {
   return parsePostResponse(response.data);
 }
 
+
 /**
  * Parse login response string.
  * 
