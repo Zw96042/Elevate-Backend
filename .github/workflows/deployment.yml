@@ -10,19 +10,20 @@ jobs:
     name: SSH Deploy to OPC Server
     runs-on: ubuntu-latest
 
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: SSH and deploy
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: 22
-          script: |
-            cd /home/opc/Elevate-Backend
+      - name: Get SSH Key and set permissions
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa
+      - name: SSH
+        run: ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/Elevate-Backend
+
+      - name: Deploy code and restart server
+        run: |
             git pull origin main
             npm install
             pm2 restart elevate-backend
