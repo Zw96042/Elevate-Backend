@@ -15,6 +15,7 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/github-actions
+          ssh-keygen -lf ~/.ssh/github-actions
           chmod 600 ~/.ssh/github-actions
 
       - name: SSH and Deploy
