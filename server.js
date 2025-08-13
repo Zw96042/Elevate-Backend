@@ -6,6 +6,7 @@ import { fetchAllMessages, parseMessages, fetchMessagesAfterId } from './src/mes
 import { getNewSessionCodes, fetchGradebook } from './src/auth.js';
 import { extractSfGridObjectsFromExtend } from './src/extract.js';
 import { parseGradebookRows, annotateGradesWithCourseNames, organizeGradesByCourse } from './src/grades.js';
+import { getAcademicHistory } from './src/academicHistory.js';
 import { parse } from 'node-html-parser';
 
 const app = express();
@@ -163,6 +164,32 @@ app.post('/next-messages', async (req, res) => {
     } else {
         // throw err;
       res.status(500).send({ error: err.message });
+    }
+  }
+});
+
+// Academic History endpoint
+app.post('/history', async (req, res) => {
+  try {
+    const now = new Date();
+    console.log("Academic history request at", now.toLocaleString());
+    const { dwd, encses, sessionid, wfaacl, baseUrl, 'User-Type': userType } = req.body;
+
+    if (!dwd || !encses || !sessionid || !wfaacl || !baseUrl) {
+      return res.status(400).json({ error: 'Missing session credentials or baseUrl in request body' });
+    }
+
+    const codes = { dwd, encses, sessionid, wfaacl, 'User-Type': userType || '2' };
+
+    const academicData = await getAcademicHistory(baseUrl, codes);
+
+    res.json(academicData);
+  } catch (err) {
+    if (err.message.includes('Session expired') || err.message.includes('Authentication failed')) {
+      res.status(401).json({ error: 'Session expired. Please authenticate again.' });
+    } else {
+      console.error('Error fetching academic history:', err);
+      res.status(500).json({ error: err.message });
     }
   }
 });
