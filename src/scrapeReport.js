@@ -205,7 +205,6 @@ const parseReportData = async (htmlData) => {
       time: details.time || null,
       scores: []
     }));
-
   const allCourses = [...courses, ...additionalCourses];
   
   return { data: allCourses, raw: htmlData };
