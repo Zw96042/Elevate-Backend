@@ -176,7 +176,7 @@ const parseReportData = async (htmlData) => {
         }
       });
 
-      if (courseNumber && courseData.length > 0) {
+      if (courseNumber) {
         const details = courseDetails[courseNumber] || {};
         
         return {
@@ -185,7 +185,7 @@ const parseReportData = async (htmlData) => {
           instructor: details.instructor || null,
           period: details.period || null,
           time: details.time || null,
-          scores: courseData
+          scores: courseData // This will be an empty array if no grades
         };
       }
       
