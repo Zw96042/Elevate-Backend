@@ -192,6 +192,21 @@ const parseReportData = async (htmlData) => {
       return null;
     })
     .filter(course => course !== null);
+
+  // Add courses from courseDetails that don't appear in grade data
+  const gradeDataCourseIds = new Set(courses.map(course => course.course));
+  const additionalCourses = Object.entries(courseDetails)
+    .filter(([courseId]) => !gradeDataCourseIds.has(Number(courseId)))
+    .map(([courseId, details]) => ({
+      course: Number(courseId),
+      courseName: details.courseName || `Course ${courseId}`,
+      instructor: details.instructor || null,
+      period: details.period || null,
+      time: details.time || null,
+      scores: []
+    }));
+
+  const allCourses = [...courses, ...additionalCourses];
   
-  return { data: courses, raw: htmlData };
+  return { data: allCourses, raw: htmlData };
 };
