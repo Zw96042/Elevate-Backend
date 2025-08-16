@@ -1,3 +1,6 @@
+// Polyfill for ReadableStream on older Node.js versions
+import 'web-streams-polyfill/polyfill';
+
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';

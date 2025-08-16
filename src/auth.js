@@ -10,7 +10,24 @@ import { parse } from 'node-html-parser';
  * @returns {Promise<Object>} Session codes object.
  */
 export async function getNewSessionCodes(user, pass, baseURL) {
-  const authenticationURL = baseURL + 'skyporthttp.w';
+  // Validate and clean baseURL
+  if (!baseURL || typeof baseURL !== 'string') {
+    throw new Error('Invalid baseURL provided');
+  }
+  
+  // Ensure baseURL ends with '/' for proper concatenation
+  const cleanBaseURL = baseURL.endsWith('/') ? baseURL : baseURL + '/';
+  const authenticationURL = cleanBaseURL + 'skyporthttp.w';
+  
+  // Validate the final URL
+  try {
+    new URL(authenticationURL);
+  } catch (error) {
+    console.error('Invalid authentication URL:', authenticationURL);
+    throw new Error(`Invalid authentication URL: ${authenticationURL}`);
+  }
+  
+  console.log('Authentication URL:', authenticationURL); // Debug log
 
   const formData = new URLSearchParams({
     codeType: 'tryLogin',
@@ -46,12 +63,22 @@ function parsePostResponse(postResponse) {
   if (toks.length < 15) {
     // If not valid, parse as HTML and throw error text
     const root = parse(postResponse);
-    const rootText = root.text || postResponse;
+    const rootText = root.text || postResponse || '';
 
-    if (rootText.toLowerCase().includes("invalid username or password")) {
+    if (rootText.toLowerCase().includes("invalid username or password") || 
+        rootText.toLowerCase().includes("invalid user") ||
+        rootText.toLowerCase().includes("invalid login")) {
       throw new Error("Invalid user or pass, or locked account");
     }
-    throw new Error(rootText);
+    
+    // Log the actual response for debugging
+    console.error('Failed to parse authentication response:', {
+      responseLength: postResponse?.length,
+      firstChars: postResponse?.substring(0, 100),
+      tokensCount: toks.length
+    });
+    
+    throw new Error(`Authentication parsing failed: ${rootText || 'Unknown error'}`);
   }
 
   // Return structured session codes
