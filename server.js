@@ -7,6 +7,7 @@ import { getNewSessionCodes, fetchGradebook } from './src/auth.js';
 import { extractSfGridObjectsFromExtend } from './src/extract.js';
 import { parseGradebookRows, annotateGradesWithCourseNames, organizeGradesByCourse } from './src/grades.js';
 import { getAcademicHistory } from './src/academicHistory.js';
+import { scrapeReport, scrapeReportWithCredentials } from './src/scrapeReport.js';
 import { parse } from 'node-html-parser';
 
 const app = express();
@@ -191,6 +192,95 @@ app.post('/history', async (req, res) => {
       console.error('Error fetching academic history:', err);
       res.status(500).json({ error: err.message });
     }
+  }
+});
+
+// Scrape Report endpoint - accepts auth tokens instead of username/password
+app.post('/scrape-report', async (req, res) => {
+  try {
+    const now = new Date();
+    console.log("Scrape report request at", now.toLocaleString());
+    const { dwd, encses, sessionid, wfaacl, baseUrl, 'User-Type': userType } = req.body;
+
+    if (!dwd || !encses || !wfaacl || !baseUrl) {
+      return res.status(400).json({ error: 'Missing session credentials or baseUrl in request body' });
+    }
+
+    // Construct auth object from tokens (sessionid is optional for this endpoint)
+    const auth = { 
+      dwd, 
+      encses, 
+      wfaacl,
+      sessionId: sessionid,
+      'User-Type': userType || '2' 
+    };
+
+    // Use the working scrape report function
+    const result = await scrapeReport(baseUrl, auth);
+    
+    res.json({
+      success: true,
+      data: result.data
+    });
+    
+  } catch (err) {
+    console.error('Error scraping report:', err);
+    
+    if (err.message.includes('Session expired')) {
+      res.status(401).json({ 
+        success: false, 
+        error: 'Session expired. Please authenticate again.' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: err.message 
+      });
+    }
+  }
+});
+
+// Test Scrape Report endpoint - uses username/password instead of tokens (for testing)
+app.post('/test-scrape-report', async (req, res) => {
+  try {
+    const now = new Date();
+    console.log("Test scrape report request at", now.toLocaleString());
+    const { user, pass, url } = req.body;
+
+    // Use environment variables if not provided in request
+    const username = user || process.env.SKYWARD_USER;
+    const password = pass || process.env.SKYWARD_PASS;
+    const baseUrl = url || process.env.SKYWARD_BASEURL;
+
+    if (!username || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing username or password. Provide in request body or set SKYWARD_USER and SKYWARD_PASS environment variables.' 
+      });
+    }
+
+    if (!baseUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing URL. Please provide url in request body or set SKYWARD_BASEURL environment variable'
+      });
+    }
+
+    // Use the working test function
+    const result = await scrapeReportWithCredentials(baseUrl, username, password);
+    
+    res.json({
+      success: true,
+      data: result.data,
+      // raw: result.raw // Uncomment if you want to see raw HTML
+    });
+    
+  } catch (err) {
+    console.error('Error with test scrape report:', err);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
   }
 });
 
