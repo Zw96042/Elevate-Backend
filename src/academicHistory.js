@@ -93,13 +93,9 @@ export const condenseHistoryData = (gridObjects) => {
     if (excludePatterns.some(pattern => pattern.test(name))) {
       return false;
     }
-    
-    // Course should have some meaningful data
-    const hasGrades = courseData.allColumns.some(col => /^\d+$/.test(col));
-    const hasLetterGrades = courseData.allColumns.some(col => /^[A-F][+-]?$/.test(col));
-    const hasPassGrades = courseData.allColumns.some(col => col === 'P');
-    
-    return hasGrades || hasLetterGrades || hasPassGrades;
+
+    // Include course if it has a valid name (even without grades)
+    return name.length > 2; // Must have more than 2 characters to be a valid course name
   };
   
   const parseCourseRow = (row) => {
@@ -179,7 +175,7 @@ export const condenseHistoryData = (gridObjects) => {
     if (currentSection) {
       yearSections.push(currentSection);
     }
-    
+
     yearSections.forEach(section => {
       const courses = section.rows
         .map(parseCourseRow)
@@ -191,7 +187,8 @@ export const condenseHistoryData = (gridObjects) => {
       
       const academicYearKey = `${section.begin}-${section.end}`;
       
-      if (regularCourses.length > 0) {
+      // Include academic year even if no valid courses (for courses without grades)
+      if (regularCourses.length > 0 || section.rows.length > 1) { // Include if has courses or more than just header
         const regularCoursesObject = {};
         regularCourses.forEach(course => {
           regularCoursesObject[course.courseName] = {

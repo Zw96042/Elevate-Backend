@@ -1,6 +1,118 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
+// Function to scrape academic history for current year course-term mapping
+const scrapeAcademicHistory = async (baseUrl, auth) => {
+  try {
+    const postData = new URLSearchParams({ ...auth });
+    const url = baseUrl + 'sfacademichistory001.w';
+
+    const response = await axios.post(url, postData.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+
+    const htmlData = response.data;
+    
+    // Check for session expiration
+    if (htmlData.includes('Your session has expired and you have been logged out.')) {
+      throw new Error('Session expired');
+    }
+
+    const $ = cheerio.load(htmlData);
+    const courseTermMap = {};
+
+    // Find the current academic year grid (usually the first one)
+    const script = $('script[data-rel="sff"]').html();
+    
+    if (!script) {
+      return courseTermMap;
+    }
+
+    const results = /\$\.extend\(\(sff\.getValue\('sf_gridObjects'\) \|\| {}\), ([\s\S]*)\)\);/g.exec(script);
+    
+    if (!results) {
+      return courseTermMap;
+    }
+
+    const parsedData = eval(`0 || ${results[1]}`);
+    
+    // Find the academic history grid (usually named like ahGrid_...)
+    const values = Object.entries(parsedData);
+    const targetPair = values.find(([key]) => /ahGrid_\d+_\d+/.test(key));
+    
+    if (!targetPair || !targetPair[1].tb || !targetPair[1].tb.r) {
+      return courseTermMap;
+    }
+
+    const gridData = targetPair[1];
+    
+    // Process each row in the academic history grid
+    gridData.tb.r.forEach(row => {
+      if (row.c && row.c.length > 0) {
+        let courseName = '';
+        let termNumbers = [];
+        
+        row.c.forEach(cell => {
+          if (cell.d) {
+            // Look for course name (usually in a cell with course title)
+            const courseMatch = cell.d.match(/^([^(]+)/);
+            if (courseMatch && !courseName) {
+              const potentialCourseName = courseMatch[1].trim();
+              // Only capture if it looks like a course name (not empty, not just numbers)
+              if (potentialCourseName && !/^\d+$/.test(potentialCourseName) && !/^\d+\s*-\s*\d+$/.test(potentialCourseName)) {
+                courseName = potentialCourseName;
+              }
+            }
+            
+            // Look for term ranges like "1 - 4", "1-2", "3 - 4", etc.
+            const termRangeMatch = cell.d.match(/(\d+)\s*-\s*(\d+)/);
+            if (termRangeMatch) {
+              const startTerm = parseInt(termRangeMatch[1]);
+              const endTerm = parseInt(termRangeMatch[2]);
+              if (startTerm >= 1 && endTerm <= 12 && startTerm <= endTerm) {
+                // Add all terms in the range
+                for (let i = startTerm; i <= endTerm; i++) {
+                  if (!termNumbers.includes(i)) {
+                    termNumbers.push(i);
+                  }
+                }
+              }
+            } else {
+              // Fallback: Look for single term number (usually appears as "Term X" or just a number)
+              const termMatch = cell.d.match(/(?:Term\s*)?(\d+)/i);
+              if (termMatch) {
+                const term = parseInt(termMatch[1]);
+                if (term >= 1 && term <= 12 && !termNumbers.includes(term)) {
+                  termNumbers.push(term);
+                }
+              }
+            }
+          }
+        });
+        
+        // If we found both course name and term numbers, store the mapping
+        if (courseName && termNumbers.length > 0) {
+          if (!courseTermMap[courseName]) {
+            courseTermMap[courseName] = [];
+          }
+          termNumbers.forEach(termNumber => {
+            if (!courseTermMap[courseName].includes(termNumber)) {
+              courseTermMap[courseName].push(termNumber);
+            }
+          });
+        }
+      }
+    });
+    
+    console.log('Academic history course-term mapping:', courseTermMap);
+    return courseTermMap;
+    
+  } catch (error) {
+    console.error('Error scraping academic history:', error);
+    return {};
+  }
+};
+
 // Standalone authentication function
 const authenticate = async (skywardURL, username, password) => {
   const loginResponse = await axios({
@@ -36,7 +148,10 @@ export const scrapeReportWithCredentials = async (baseUrl, username, password) =
     // Step 1: Authenticate
     const auth = await authenticate(baseUrl, username, password);
     
-    // Step 2: Fetch report card data
+    // Step 2: Get academic history course-term mapping
+    const courseTermMap = await scrapeAcademicHistory(baseUrl, auth);
+    
+    // Step 3: Fetch report card data
     const response = await axios({
       url: '../sfgradebook001.w',
       baseURL: baseUrl,
@@ -47,7 +162,7 @@ export const scrapeReportWithCredentials = async (baseUrl, username, password) =
     const htmlData = response.data;
     
     // Parse and extract data using shared logic
-    return await parseReportData(htmlData);
+    return await parseReportData(htmlData, courseTermMap);
     
   } catch (error) {
     throw error;
@@ -57,7 +172,10 @@ export const scrapeReportWithCredentials = async (baseUrl, username, password) =
 // Report scraper function that accepts auth tokens
 export const scrapeReport = async (baseUrl, auth) => {
   try {
-    // Step 1: Fetch gradebook data using the same method as the working grades endpoint
+    // Step 1: Get academic history course-term mapping
+    const courseTermMap = await scrapeAcademicHistory(baseUrl, auth);
+    
+    // Step 2: Fetch gradebook data using the same method as the working grades endpoint
     const postData = new URLSearchParams({ ...auth });
     const url = baseUrl + 'sfgradebook001.w';
 
@@ -73,7 +191,7 @@ export const scrapeReport = async (baseUrl, auth) => {
     }
     
     // Parse and extract data using shared logic
-    return await parseReportData(htmlData);
+    return await parseReportData(htmlData, courseTermMap);
     
   } catch (error) {
     throw error;
@@ -81,7 +199,7 @@ export const scrapeReport = async (baseUrl, auth) => {
 };
 
 // Shared parsing logic
-const parseReportData = async (htmlData) => {
+const parseReportData = async (htmlData, courseTermMap = {}) => {
   // Step 3: Parse the JavaScript data from HTML
   const $ = cheerio.load(htmlData);
   const script = $('script[data-rel="sff"]').html();
@@ -179,12 +297,52 @@ const parseReportData = async (htmlData) => {
       if (courseNumber) {
         const details = courseDetails[courseNumber] || {};
         
+        // Determine semester span using academic history data
+        let semester = 'unknown';
+        const courseName = details.courseName;
+        
+        if (courseName && courseTermMap[courseName]) {
+          const termNumbers = courseTermMap[courseName];
+          const hasEarlyTerms = termNumbers.some(num => num >= 1 && num <= 2);
+          const hasLateTerms = termNumbers.some(num => num >= 3 && num <= 4);
+          
+          if (hasEarlyTerms && hasLateTerms) {
+            semester = 'both';
+          } else if (hasEarlyTerms) {
+            semester = 'fall';
+          } else if (hasLateTerms) {
+            semester = 'spring';
+          }
+        } else {
+          // Fallback to old method if academic history data is not available
+          const termNumbers = courseData
+            .map(score => {
+              const match = score.bucket.match(/TERM (\d+)/);
+              return match ? parseInt(match[1]) : null;
+            })
+            .filter(num => num !== null);
+          
+          if (termNumbers.length > 0) {
+            const hasEarlyTerms = termNumbers.some(num => num >= 1 && num <= 2);
+            const hasLateTerms = termNumbers.some(num => num >= 3 && num <= 4);
+            
+            if (hasEarlyTerms && hasLateTerms) {
+              semester = 'both';
+            } else if (hasEarlyTerms) {
+              semester = 'fall';
+            } else if (hasLateTerms) {
+              semester = 'spring';
+            }
+          }
+        }
+        
         return {
           course: courseNumber,
           courseName: details.courseName || `Course ${courseNumber}`,
           instructor: details.instructor || null,
           period: details.period || null,
           time: details.time || null,
+          semester: semester,
           scores: courseData // This will be an empty array if no grades
         };
       }
@@ -197,14 +355,35 @@ const parseReportData = async (htmlData) => {
   const gradeDataCourseIds = new Set(courses.map(course => course.course));
   const additionalCourses = Object.entries(courseDetails)
     .filter(([courseId]) => !gradeDataCourseIds.has(Number(courseId)))
-    .map(([courseId, details]) => ({
-      course: Number(courseId),
-      courseName: details.courseName || `Course ${courseId}`,
-      instructor: details.instructor || null,
-      period: details.period || null,
-      time: details.time || null,
-      scores: []
-    }));
+    .map(([courseId, details]) => {
+      let semester = 'both'; // Default fallback
+      
+      // Use academic history data to determine semester for courses without grades
+      const courseName = details.courseName;
+      if (courseName && courseTermMap[courseName]) {
+        const termNumbers = courseTermMap[courseName];
+        const hasEarlyTerms = termNumbers.some(num => num >= 1 && num <= 2);
+        const hasLateTerms = termNumbers.some(num => num >= 3 && num <= 4);
+        
+        if (hasEarlyTerms && hasLateTerms) {
+          semester = 'both';
+        } else if (hasEarlyTerms) {
+          semester = 'fall';
+        } else if (hasLateTerms) {
+          semester = 'spring';
+        }
+      }
+      
+      return {
+        course: Number(courseId),
+        courseName: details.courseName || `Course ${courseId}`,
+        instructor: details.instructor || null,
+        period: details.period || null,
+        time: details.time || null,
+        semester: semester,
+        scores: []
+      };
+    });
   const allCourses = [...courses, ...additionalCourses];
   
   return { data: allCourses, raw: htmlData };
