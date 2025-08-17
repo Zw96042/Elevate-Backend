@@ -190,8 +190,23 @@ export const condenseHistoryData = (gridObjects) => {
       // Include academic year even if no valid courses (for courses without grades)
       if (regularCourses.length > 0 || section.rows.length > 1) { // Include if has courses or more than just header
         const regularCoursesObject = {};
+        const courseNameCounts = {};
+        
         regularCourses.forEach(course => {
-          regularCoursesObject[course.courseName] = {
+          let courseKey = course.courseName;
+          
+          // Handle duplicate course names by adding a suffix
+          if (regularCoursesObject[courseKey]) {
+            courseNameCounts[course.courseName] = (courseNameCounts[course.courseName] || 1) + 1;
+            courseKey = `${course.courseName}_${courseNameCounts[course.courseName]}`;
+          } else if (courseNameCounts[course.courseName]) {
+            courseNameCounts[course.courseName] += 1;
+            courseKey = `${course.courseName}_${courseNameCounts[course.courseName]}`;
+          } else {
+            courseNameCounts[course.courseName] = 1;
+          }
+          
+          regularCoursesObject[courseKey] = {
             terms: course.terms,
             finalGrade: course.finalGrade,
             sm1: course.semester1, sm2: course.semester2,
@@ -214,8 +229,23 @@ export const condenseHistoryData = (gridObjects) => {
         }
         
         const altCoursesObject = {};
+        const altCourseNameCounts = {};
+        
         altCourses.forEach(course => {
-          altCoursesObject[course.courseName] = {
+          let courseKey = course.courseName;
+          
+          // Handle duplicate course names by adding a suffix
+          if (altCoursesObject[courseKey]) {
+            altCourseNameCounts[course.courseName] = (altCourseNameCounts[course.courseName] || 1) + 1;
+            courseKey = `${course.courseName}_${altCourseNameCounts[course.courseName]}`;
+          } else if (altCourseNameCounts[course.courseName]) {
+            altCourseNameCounts[course.courseName] += 1;
+            courseKey = `${course.courseName}_${altCourseNameCounts[course.courseName]}`;
+          } else {
+            altCourseNameCounts[course.courseName] = 1;
+          }
+          
+          altCoursesObject[courseKey] = {
             terms: course.terms,
             finalGrade: course.finalGrade,
             sm1: course.semester1, sm2: course.semester2,

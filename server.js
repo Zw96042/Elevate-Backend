@@ -187,6 +187,7 @@ app.post('/history', async (req, res) => {
 
     const academicData = await getAcademicHistory(baseUrl, codes);
 
+    console.log('Academic history data:', JSON.stringify(academicData, null, 1));
     res.json(academicData);
   } catch (err) {
     if (err.message.includes('Session expired') || err.message.includes('Authentication failed')) {
@@ -221,11 +222,12 @@ app.post('/scrape-report', async (req, res) => {
     // Use the working scrape report function
     const result = await scrapeReport(baseUrl, auth);
     
+    // console.log('Scrape report result: ', JSON.stringify(result.data, null, 1));
     res.json({
       success: true,
       data: result.data
     });
-    
+  
   } catch (err) {
     console.error('Error scraping report:', err);
     
