@@ -172,8 +172,6 @@ export const scrapeReportWithCredentials = async (baseUrl, username, password) =
 // Report scraper function that accepts auth tokens
 export const scrapeReport = async (baseUrl, auth) => {
   try {
-    console.log('Auth tokens received:', Object.keys(auth));
-    console.log('Auth object:', auth);
     
     // Step 1: Get academic history course-term mapping
     const courseTermMap = await scrapeAcademicHistory(baseUrl, auth);
@@ -182,16 +180,13 @@ export const scrapeReport = async (baseUrl, auth) => {
     const postData = new URLSearchParams({ ...auth });
     const url = baseUrl + 'sfgradebook001.w';
 
-    console.log('Making request to:', url);
-    console.log('Post data:', postData.toString());
+
 
     const response = await axios.post(url, postData.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
 
     const htmlData = response.data;
-    console.log('Response status:', response.status);
-    console.log('Response size:', htmlData.length);
     
     // Check for session expiration
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {

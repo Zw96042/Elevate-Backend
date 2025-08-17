@@ -187,7 +187,7 @@ app.post('/history', async (req, res) => {
 
     const academicData = await getAcademicHistory(baseUrl, codes);
 
-    console.log('Academic history data:', JSON.stringify(academicData, null, 1));
+    
     res.json(academicData);
   } catch (err) {
     if (err.message.includes('Session expired') || err.message.includes('Authentication failed')) {
