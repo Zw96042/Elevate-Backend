@@ -27,3 +27,4 @@ export function extractSfGridObjectsFromExtend(html) {
     return null;
   }
 }
+

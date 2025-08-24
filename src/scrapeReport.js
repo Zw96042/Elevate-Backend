@@ -1,5 +1,6 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import fs from 'fs';
 
 // Function to scrape academic history for current year course-term mapping
 const scrapeAcademicHistory = async (baseUrl, auth) => {
@@ -12,7 +13,10 @@ const scrapeAcademicHistory = async (baseUrl, auth) => {
     });
 
     const htmlData = response.data;
-    
+    // Write to file
+    // console.log("HTML: ", htmlData);
+    fs.writeFileSync('academic_history.html', htmlData);
+
     // Check for session expiration
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
       const err = new Error('Session expired');
@@ -189,7 +193,9 @@ export const scrapeReport = async (baseUrl, auth) => {
     });
 
     const htmlData = response.data;
-    
+    // Write to file
+    fs.writeFileSync('sfgradebook001.html', htmlData);
+
     // Check for session expiration
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
       const err = new Error('Session expired');

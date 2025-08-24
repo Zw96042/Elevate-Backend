@@ -53,7 +53,7 @@ export async function getNewSessionCodes(user, pass, baseURL) {
  * @returns {Object|null} Parsed session codes or null if invalid.
  * @throws Will throw an error if the response indicates failure.
  */
-function parsePostResponse(postResponse) {
+export function parsePostResponse(postResponse) {
   if (!postResponse) return null;
 
   // Dissect response assuming format: first 4 and last 5 chars are extraneous

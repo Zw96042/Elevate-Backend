@@ -12,6 +12,7 @@ import { parseGradebookRows, annotateGradesWithCourseNames, organizeGradesByCour
 import { getAcademicHistory } from './src/academicHistory.js';
 import { scrapeReport, scrapeReportWithCredentials } from './src/scrapeReport.js';
 import { parse } from 'node-html-parser';
+import gradeInfo from './src/gradeInfo.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -246,50 +247,25 @@ app.post('/scrape-report', async (req, res) => {
   }
 });
 
-// Test Scrape Report endpoint - uses username/password instead of tokens (for testing)
-app.post('/test-scrape-report', async (req, res) => {
-  try {
-    const now = new Date();
-    console.log("Test scrape report request at", now.toLocaleString());
-    const { user, pass, url } = req.body;
-
-    // Use environment variables if not provided in request
-    const username = user || process.env.SKYWARD_USER;
-    const password = pass || process.env.SKYWARD_PASS;
-    const baseUrl = url || process.env.SKYWARD_BASEURL;
-
-    if (!username || !password) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Missing username or password. Provide in request body or set SKYWARD_USER and SKYWARD_PASS environment variables.' 
-      });
-    }
-
-    if (!baseUrl) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing URL. Please provide url in request body or set SKYWARD_BASEURL environment variable'
-      });
-    }
-
-    // Use the working test function
-    const result = await scrapeReportWithCredentials(baseUrl, username, password);
-    
-    res.json({
-      success: true,
-      data: result.data,
-      // raw: result.raw // Uncomment if you want to see raw HTML
-    });
-    
-  } catch (err) {
-    console.error('Error with test scrape report:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
-    });
-  }
-});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Skyward backend API listening on port ${PORT}`);
+});
+
+// New API route for GradeInfoAPI
+app.post('/grade-info', async (req, res) => {
+  console.log("Grade info req");
+  try {
+    // Accept sessionTokens, params, and optional customUrl in request body
+    const { sessionTokens, params, customUrl } = req.body;
+    if (!sessionTokens || !params) {
+      return res.status(400).json({ error: 'Missing sessionTokens or params in request body' });
+    }
+    const gradeInfoApi = new gradeInfo(sessionTokens);
+    const info = await gradeInfoApi.fetchGradeInfo(params, customUrl);
+    return res.json({ success: true, data: info });
+  } catch (err) {
+    console.error('Error in /grade-info:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 });
