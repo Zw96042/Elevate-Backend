@@ -186,7 +186,7 @@ app.post('/history', async (req, res) => {
     const codes = { dwd, encses, sessionid, wfaacl, 'User-Type': userType || '2' };
 
     const academicData = await getAcademicHistory(baseUrl, codes);
-
+    // console.log('Academic history data:', JSON.stringify(academicData, null, 2));
     
     res.json(academicData);
   } catch (err) {
@@ -231,10 +231,11 @@ app.post('/scrape-report', async (req, res) => {
   } catch (err) {
     console.error('Error scraping report:', err);
     
-    if (err.message.includes('Session expired')) {
-      res.status(401).json({ 
-        success: false, 
-        error: 'Session expired. Please authenticate again.' 
+    if (err.code === 'SESSION_EXPIRED' || err.message.includes('Session expired')) {
+      res.status(401).json({
+        success: false,
+        error: 'session_expired',
+        message: 'Session expired. Please re-authenticate.'
       });
     } else {
       res.status(500).json({ 

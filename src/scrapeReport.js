@@ -15,7 +15,9 @@ const scrapeAcademicHistory = async (baseUrl, auth) => {
     
     // Check for session expiration
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
-      throw new Error('Session expired');
+      const err = new Error('Session expired');
+      err.code = 'SESSION_EXPIRED';
+      throw err;
     }
 
     const $ = cheerio.load(htmlData);
@@ -190,7 +192,9 @@ export const scrapeReport = async (baseUrl, auth) => {
     
     // Check for session expiration
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
-      throw new Error('Session expired');
+      const err = new Error('Session expired');
+      err.code = 'SESSION_EXPIRED';
+      throw err;
     }
     
     // Parse and extract data using shared logic
