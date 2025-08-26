@@ -112,7 +112,7 @@ const scrapeAcademicHistory = async (baseUrl, auth) => {
     const htmlData = response.data;
     // Write to file
     // console.log("HTML: ", htmlData);
-    fs.writeFileSync('academic_history.html', htmlData);
+    // fs.writeFileSync('academic_history.html', htmlData);
 
     // Check for session expiration
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
@@ -282,7 +282,7 @@ export const scrapeReport = async (baseUrl, auth) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     const historyHtml = historyResponse.data;
-    fs.writeFileSync('academic_history.html', historyHtml);
+    // fs.writeFileSync('academic_history.html', historyHtml);
 
     // Check for session expiration
     if (historyHtml.includes('Your session has expired') || historyHtml.includes('Your session has timed out')) {
@@ -362,7 +362,7 @@ export const scrapeReport = async (baseUrl, auth) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     const htmlData = gradebookResponse.data;
-    fs.writeFileSync('sfgradebook001.html', htmlData);
+    // fs.writeFileSync('sfgradebook001.html', htmlData);
 
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
       const err = new Error('Session expired');
