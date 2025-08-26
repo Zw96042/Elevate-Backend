@@ -1,0 +1,153 @@
+{
+  "success": true,
+  "data": [
+    {
+      "course": 86789,
+      "courseName": "COMPUTER SCIENCE II",
+      "instructor": "LYNDEN ROSIER",
+      "period": 1,
+      "time": "8:40 AM - 9:40 AM",
+      "semester": "both",
+      "scores": [
+        {
+          "bucket": "TERM 1",
+          "score": 100
+        },
+        {
+          "bucket": "TERM 2",
+          "score": 100
+        },
+        {
+          "bucket": "TERM 3",
+          "score": 100
+        },
+        {
+          "bucket": "SEM 1",
+          "score": 100
+        }
+      ]
+    },
+    {
+      "course": 86437,
+      "courseName": "AP CALCULUS BC",
+      "instructor": "JOCELYN BIXLER",
+      "period": 2,
+      "time": "9:46 AM - 10:39 AM",
+      "semester": "both",
+      "scores": [
+        {
+          "bucket": "TERM 1",
+          "score": 99
+        },
+        {
+          "bucket": "TERM 2",
+          "score": 99
+        },
+        {
+          "bucket": "TERM 3",
+          "score": 99
+        },
+        {
+          "bucket": "SEM 1",
+          "score": 99
+        }
+      ]
+    },
+    {
+      "course": 86864,
+      "courseName": "AP ART HISTORY",
+      "instructor": "MEGAN HOLDEN",
+      "period": 3,
+      "time": "10:45 AM - 11:35 AM",
+      "semester": "both",
+      "scores": [
+        {
+          "bucket": "TERM 1",
+          "score": 100
+        },
+        {
+          "bucket": "TERM 2",
+          "score": 100
+        },
+        {
+          "bucket": "TERM 3",
+          "score": 100
+        },
+        {
+          "bucket": "SEM 1",
+          "score": 100
+        }
+      ]
+    },
+    {
+      "course": 86597,
+      "courseName": "CHEMISTRY 1 HONORS",
+      "instructor": "JENNA SCOTT",
+      "period": 4,
+      "time": "11:41 AM - 12:31 PM",
+      "semester": "both",
+      "scores": [
+        {
+          "bucket": "TERM 1",
+          "score": 98
+        },
+        {
+          "bucket": "TERM 2",
+          "score": 98
+        },
+        {
+          "bucket": "TERM 3",
+          "score": 98
+        },
+        {
+          "bucket": "SEM 1",
+          "score": 98
+        }
+      ]
+    },
+    {
+      "course": 86362,
+      "courseName": "ENGLISH 2 HONORS",
+      "instructor": "JEFF MONTGOMERY",
+      "period": 6,
+      "time": "1:33 PM - 2:23 PM",
+      "semester": "both",
+      "scores": [
+        {
+          "bucket": "TERM 1",
+          "score": 99
+        },
+        {
+          "bucket": "TERM 2",
+          "score": 99
+        },
+        {
+          "bucket": "TERM 3",
+          "score": 99
+        },
+        {
+          "bucket": "SEM 1",
+          "score": 99
+        }
+      ]
+    },
+    {
+      "course": 86434,
+      "courseName": "AP STATISTICS",
+      "instructor": "KAREN CHONG",
+      "period": 8,
+      "time": "3:25 PM - 4:15 PM",
+      "semester": "both",
+      "scores": []
+    },
+    {
+      "course": 86793,
+      "courseName": "ROBOTICS I",
+      "instructor": "JASON SPODICK",
+      "period": 7,
+      "time": "2:29 PM - 3:19 PM",
+      "semester": "both",
+      "scores": []
+    }
+  ]
+}

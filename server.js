@@ -222,11 +222,10 @@ app.post('/scrape-report', async (req, res) => {
 
     // Use the working scrape report function
     const result = await scrapeReport(baseUrl, auth);
-    
-    // console.log('Scrape report result: ', JSON.stringify(result.data, null, 1));
+    // Return the full combined result
     res.json({
       success: true,
-      data: result.data
+      combined: result
     });
   
   } catch (err) {

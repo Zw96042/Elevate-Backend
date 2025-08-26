@@ -1,6 +1,102 @@
+// Example usage: fetch and combine academic history and scrape report
+// This function assumes you have baseUrl and auth/sessionCodes available
+export async function getCombinedAcademicHistoryReport(baseUrl, sessionCodes) {
+  // Get academic history
+  const academicHistory = await getAcademicHistory(baseUrl, sessionCodes);
+
+  // Get scrape report (gradebook)
+  const scrapeReportResult = await scrapeReport(baseUrl, sessionCodes);
+
+  // Combine them
+  const combined = combineAcademicHistoryWithScrapeReport(academicHistory, scrapeReportResult);
+  return combined;
+}
+// Combines scrape report data into academic history for the latest year
+export function combineAcademicHistoryWithScrapeReport(academicHistory, scrapeReport) {
+  if (!academicHistory || typeof academicHistory !== 'object' || !scrapeReport || !scrapeReport.data) {
+    throw new Error('Invalid input data');
+  }
+
+  // Find the latest academic year (exclude 'alt')
+  const yearKeys = Object.keys(academicHistory).filter(k => k !== 'alt');
+  if (yearKeys.length === 0) return academicHistory;
+  const latestYear = yearKeys.sort().reverse()[0];
+  const yearData = academicHistory[latestYear];
+  if (!yearData || !yearData.courses) return academicHistory;
+
+  // Map scrape report courseName to academic history courseKey
+  const academicCourses = yearData.courses;
+  const bucketMap = {
+    'TERM 1': 'pr1',
+    'TERM 2': 'pr2',
+    'TERM 3': 'rc1',
+    'TERM 4': 'pr3',
+    'TERM 5': 'pr4',
+    'TERM 6': 'rc2',
+    'TERM 7': 'pr5',
+    'TERM 8': 'pr6',
+    'TERM 9': 'rc3',
+    'TERM 10': 'pr7',
+    'TERM 11': 'pr8',
+    'TERM 12': 'rc4',
+    'SEM 1': 'sm1',
+    'SEM 2': 'sm2'
+  };
+
+  // Build new courses object only with classes from scrape report
+  const newCourses = {};
+  for (const scrapeCourse of scrapeReport.data) {
+    const lookupKey = scrapeCourse.courseName.trim().toUpperCase();
+    // Find matching academic history course (case-insensitive)
+    const academicKey = Object.keys(academicCourses).find(k => k.trim().toUpperCase() === lookupKey);
+    const baseCourse = academicKey ? academicCourses[academicKey] : null;
+
+    // Start with academic history data if available, else blank
+    const courseObj = baseCourse ? { ...baseCourse } : {
+      terms: scrapeCourse.semester === 'both' ? '1 - 4' : '',
+      finalGrade: '',
+      sm1: null,
+      sm2: null,
+      pr1: '', pr2: '', pr3: '', pr4: '', pr5: '', pr6: '', pr7: '', pr8: '',
+      rc1: '', rc2: '', rc3: '', rc4: '', ex1: '', ex2: ''
+    };
+
+    // Add courseId, instructor, period
+    courseObj.courseId = scrapeCourse.course;
+    courseObj.instructor = scrapeCourse.instructor;
+    courseObj.period = scrapeCourse.period;
+
+    // Map scores into buckets
+    if (Array.isArray(scrapeCourse.scores)) {
+      for (const scoreObj of scrapeCourse.scores) {
+        const bucket = scoreObj.bucket;
+        const field = bucketMap[bucket];
+        if (field && field !== 'ex1' && field !== 'ex2') {
+          courseObj[field] = scoreObj.score;
+        }
+      }
+    }
+
+    // Remove scores array
+    if (courseObj.scores) delete courseObj.scores;
+
+    // Always preserve ex1 and ex2 from academic history if present
+    if (baseCourse) {
+      courseObj.ex1 = baseCourse.ex1;
+      courseObj.ex2 = baseCourse.ex2;
+    }
+
+    newCourses[scrapeCourse.courseName] = courseObj;
+  }
+
+  // Replace courses for latest year with newCourses
+  academicHistory[latestYear].courses = newCourses;
+  return academicHistory;
+}
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import fs from 'fs';
+import fs, { chmodSync } from 'fs';
+import { getAcademicHistory, condenseHistoryData } from './academicHistory.js';
 
 // Function to scrape academic history for current year course-term mapping
 const scrapeAcademicHistory = async (baseUrl, auth) => {
@@ -11,6 +107,7 @@ const scrapeAcademicHistory = async (baseUrl, auth) => {
     const response = await axios.post(url, postData.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
+
 
     const htmlData = response.data;
     // Write to file
@@ -178,34 +275,107 @@ export const scrapeReportWithCredentials = async (baseUrl, username, password) =
 // Report scraper function that accepts auth tokens
 export const scrapeReport = async (baseUrl, auth) => {
   try {
-    
-    // Step 1: Get academic history course-term mapping
-    const courseTermMap = await scrapeAcademicHistory(baseUrl, auth);
-    
-    // Step 2: Fetch gradebook data using the same method as the working grades endpoint
+    // Fetch academic history HTML once
     const postData = new URLSearchParams({ ...auth });
-    const url = baseUrl + 'sfgradebook001.w';
-
-
-
-    const response = await axios.post(url, postData.toString(), {
+    const historyUrl = baseUrl + 'sfacademichistory001.w';
+    const historyResponse = await axios.post(historyUrl, postData.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-
-    const htmlData = response.data;
-    // Write to file
-    fs.writeFileSync('sfgradebook001.html', htmlData);
+    const historyHtml = historyResponse.data;
+    fs.writeFileSync('academic_history.html', historyHtml);
 
     // Check for session expiration
+    if (historyHtml.includes('Your session has expired') || historyHtml.includes('Your session has timed out')) {
+      const err = new Error('Session expired');
+      err.code = 'SESSION_EXPIRED';
+      throw err;
+    }
+
+    // Parse grid objects from academic history HTML
+    const $ = cheerio.load(historyHtml);
+    const script = $('script[data-rel="sff"]').html();
+    if (!script) throw new Error('No academic history script found');
+    const results = /\$\.extend\(\(sff\.getValue\('sf_gridObjects'\) \|\| {}\), ([\s\S]*)\)\);/g.exec(script);
+    if (!results) throw new Error('No grid objects found in academic history');
+    const gridObjects = eval(`0 || ${results[1]}`);
+
+    // Get full academic history
+  const academicHistory = condenseHistoryData(gridObjects);
+
+    // Get course-term mapping from academic history grid
+    let courseTermMap = {};
+    const values = Object.entries(gridObjects);
+    const targetPair = values.find(([key]) => /ahGrid_\d+_\d+/.test(key));
+    if (targetPair && targetPair[1].tb && targetPair[1].tb.r) {
+      targetPair[1].tb.r.forEach(row => {
+        if (row.c && row.c.length > 0) {
+          let courseName = '';
+          let termNumbers = [];
+          row.c.forEach(cell => {
+            if (cell.d) {
+              const courseMatch = cell.d.match(/^([^(]+)/);
+              if (courseMatch && !courseName) {
+                const potentialCourseName = courseMatch[1].trim();
+                if (potentialCourseName && !/^\d+$/.test(potentialCourseName) && !/^\d+\s*-\s*\d+$/.test(potentialCourseName)) {
+                  courseName = potentialCourseName;
+                }
+              }
+              const termRangeMatch = cell.d.match(/(\d+)\s*-\s*(\d+)/);
+              if (termRangeMatch) {
+                const startTerm = parseInt(termRangeMatch[1]);
+                const endTerm = parseInt(termRangeMatch[2]);
+                if (startTerm >= 1 && endTerm <= 12 && startTerm <= endTerm) {
+                  for (let i = startTerm; i <= endTerm; i++) {
+                    if (!termNumbers.includes(i)) {
+                      termNumbers.push(i);
+                    }
+                  }
+                }
+              } else {
+                const termMatch = cell.d.match(/(?:Term\s*)?(\d+)/i);
+                if (termMatch) {
+                  const term = parseInt(termMatch[1]);
+                  if (term >= 1 && term <= 12 && !termNumbers.includes(term)) {
+                    termNumbers.push(term);
+                  }
+                }
+              }
+            }
+          });
+          if (courseName && termNumbers.length > 0) {
+            if (!courseTermMap[courseName]) {
+              courseTermMap[courseName] = [];
+            }
+            termNumbers.forEach(termNumber => {
+              if (!courseTermMap[courseName].includes(termNumber)) {
+                courseTermMap[courseName].push(termNumber);
+              }
+            });
+          }
+        }
+      });
+    }
+
+    // Fetch gradebook data
+    const gradebookUrl = baseUrl + 'sfgradebook001.w';
+    const gradebookResponse = await axios.post(gradebookUrl, postData.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    const htmlData = gradebookResponse.data;
+    fs.writeFileSync('sfgradebook001.html', htmlData);
+
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
       const err = new Error('Session expired');
       err.code = 'SESSION_EXPIRED';
       throw err;
     }
-    
+
     // Parse and extract data using shared logic
-    return await parseReportData(htmlData, courseTermMap);
-    
+    const scrapeReportResult = await parseReportData(htmlData, courseTermMap);
+
+    // Combine and return
+    const combined = combineAcademicHistoryWithScrapeReport(academicHistory, scrapeReportResult);
+    return combined;
   } catch (error) {
     throw error;
   }
