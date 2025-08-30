@@ -10,7 +10,7 @@ import { getNewSessionCodes, fetchGradebook } from './src/auth.js';
 import { extractSfGridObjectsFromExtend } from './src/extract.js';
 import { parseGradebookRows, annotateGradesWithCourseNames, organizeGradesByCourse } from './src/grades.js';
 import { getAcademicHistory } from './src/academicHistory.js';
-import { scrapeReport, scrapeReportWithCredentials } from './src/scrapeReport.js';
+import { scrapeReport } from './src/scrapeReport.js';
 import { parse } from 'node-html-parser';
 import gradeInfo from './src/gradeInfo.js';
 
@@ -223,6 +223,8 @@ app.post('/scrape-report', async (req, res) => {
     // Use the working scrape report function
     const result = await scrapeReport(baseUrl, auth);
     // Return the full combined result
+
+    // console.log(JSON.stringify(result, null, 2));
     res.json({
       success: true,
       combined: result
@@ -246,12 +248,6 @@ app.post('/scrape-report', async (req, res) => {
   }
 });
 
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Skyward backend API listening on port ${PORT}`);
-});
-
-// New API route for GradeInfoAPI
 app.post('/grade-info', async (req, res) => {
   console.log("Grade info req");
   try {
@@ -267,4 +263,8 @@ app.post('/grade-info', async (req, res) => {
     console.error('Error in /grade-info:', err);
     return res.status(500).json({ success: false, error: err.message });
   }
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Skyward backend API listening on port ${PORT}`);
 });

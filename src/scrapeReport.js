@@ -1,5 +1,33 @@
-// Example usage: fetch and combine academic history and scrape report
-// This function assumes you have baseUrl and auth/sessionCodes available
+import axios from 'axios';
+// Helper to extract extra info for each course from HTML
+function extractCourseExtraInfo(html) {
+  const $ = cheerio.load(html);
+  const extraInfo = {};
+  $('table[id^="classDesc_"]').each((_, table) => {
+    const tableId = $(table).attr('id');
+    // classDesc_stuId_corNumId_0_section
+    const idMatch = /classDesc_(\d+)_(\d+)_0_(\d+)/.exec(tableId);
+    if (!idMatch) return;
+    const stuId = idMatch[1];
+    const corNumId = idMatch[2];
+    const section = idMatch[3];
+    // Find a grade cell for gbID
+    let gbID = null;
+    $(table).find('a[id="showGradeInfo"]').each((_, a) => {
+      const gId = $(a).attr('data-gid');
+      if (gId) {
+        gbID = gId;
+        return false;
+      }
+    });
+    extraInfo[corNumId] = { stuId, corNumId, section, gbID };
+  });
+  return extraInfo;
+}
+import * as cheerio from 'cheerio';
+import fs, { chmodSync } from 'fs';
+import { getAcademicHistory, condenseHistoryData } from './academicHistory.js';
+
 export async function getCombinedAcademicHistoryReport(baseUrl, sessionCodes) {
   // Get academic history
   const academicHistory = await getAcademicHistory(baseUrl, sessionCodes);
@@ -61,10 +89,15 @@ export function combineAcademicHistoryWithScrapeReport(academicHistory, scrapeRe
       rc1: '', rc2: '', rc3: '', rc4: '', ex1: '', ex2: ''
     };
 
-    // Add courseId, instructor, period
-    courseObj.courseId = scrapeCourse.course;
-    courseObj.instructor = scrapeCourse.instructor;
-    courseObj.period = scrapeCourse.period;
+  // Add courseId, instructor, period
+  courseObj.courseId = scrapeCourse.course;
+  courseObj.instructor = scrapeCourse.instructor;
+  courseObj.period = scrapeCourse.period;
+  // Add extra info if present
+  if (scrapeCourse.stuId) courseObj.stuId = scrapeCourse.stuId;
+  if (scrapeCourse.corNumId) courseObj.corNumId = scrapeCourse.corNumId;
+  if (scrapeCourse.section) courseObj.section = scrapeCourse.section;
+  if (scrapeCourse.gbID) courseObj.gbID = scrapeCourse.gbID;
 
     // Map scores into buckets
     if (Array.isArray(scrapeCourse.scores)) {
@@ -93,184 +126,7 @@ export function combineAcademicHistoryWithScrapeReport(academicHistory, scrapeRe
   academicHistory[latestYear].courses = newCourses;
   return academicHistory;
 }
-import axios from 'axios';
-import * as cheerio from 'cheerio';
-import fs, { chmodSync } from 'fs';
-import { getAcademicHistory, condenseHistoryData } from './academicHistory.js';
 
-// Function to scrape academic history for current year course-term mapping
-const scrapeAcademicHistory = async (baseUrl, auth) => {
-  try {
-    const postData = new URLSearchParams({ ...auth });
-    const url = baseUrl + 'sfacademichistory001.w';
-
-    const response = await axios.post(url, postData.toString(), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
-
-
-    const htmlData = response.data;
-    // Write to file
-    // console.log("HTML: ", htmlData);
-    // fs.writeFileSync('academic_history.html', htmlData);
-
-    // Check for session expiration
-    if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
-      const err = new Error('Session expired');
-      err.code = 'SESSION_EXPIRED';
-      throw err;
-    }
-
-    const $ = cheerio.load(htmlData);
-    const courseTermMap = {};
-
-    // Find the current academic year grid (usually the first one)
-    const script = $('script[data-rel="sff"]').html();
-    
-    if (!script) {
-      return courseTermMap;
-    }
-
-    const results = /\$\.extend\(\(sff\.getValue\('sf_gridObjects'\) \|\| {}\), ([\s\S]*)\)\);/g.exec(script);
-    
-    if (!results) {
-      return courseTermMap;
-    }
-
-    const parsedData = eval(`0 || ${results[1]}`);
-    
-    // Find the academic history grid (usually named like ahGrid_...)
-    const values = Object.entries(parsedData);
-    const targetPair = values.find(([key]) => /ahGrid_\d+_\d+/.test(key));
-    
-    if (!targetPair || !targetPair[1].tb || !targetPair[1].tb.r) {
-      return courseTermMap;
-    }
-
-    const gridData = targetPair[1];
-    
-    // Process each row in the academic history grid
-    gridData.tb.r.forEach(row => {
-      if (row.c && row.c.length > 0) {
-        let courseName = '';
-        let termNumbers = [];
-        
-        row.c.forEach(cell => {
-          if (cell.d) {
-            // Look for course name (usually in a cell with course title)
-            const courseMatch = cell.d.match(/^([^(]+)/);
-            if (courseMatch && !courseName) {
-              const potentialCourseName = courseMatch[1].trim();
-              // Only capture if it looks like a course name (not empty, not just numbers)
-              if (potentialCourseName && !/^\d+$/.test(potentialCourseName) && !/^\d+\s*-\s*\d+$/.test(potentialCourseName)) {
-                courseName = potentialCourseName;
-              }
-            }
-            
-            // Look for term ranges like "1 - 4", "1-2", "3 - 4", etc.
-            const termRangeMatch = cell.d.match(/(\d+)\s*-\s*(\d+)/);
-            if (termRangeMatch) {
-              const startTerm = parseInt(termRangeMatch[1]);
-              const endTerm = parseInt(termRangeMatch[2]);
-              if (startTerm >= 1 && endTerm <= 12 && startTerm <= endTerm) {
-                // Add all terms in the range
-                for (let i = startTerm; i <= endTerm; i++) {
-                  if (!termNumbers.includes(i)) {
-                    termNumbers.push(i);
-                  }
-                }
-              }
-            } else {
-              // Fallback: Look for single term number (usually appears as "Term X" or just a number)
-              const termMatch = cell.d.match(/(?:Term\s*)?(\d+)/i);
-              if (termMatch) {
-                const term = parseInt(termMatch[1]);
-                if (term >= 1 && term <= 12 && !termNumbers.includes(term)) {
-                  termNumbers.push(term);
-                }
-              }
-            }
-          }
-        });
-        
-        // If we found both course name and term numbers, store the mapping
-        if (courseName && termNumbers.length > 0) {
-          if (!courseTermMap[courseName]) {
-            courseTermMap[courseName] = [];
-          }
-          termNumbers.forEach(termNumber => {
-            if (!courseTermMap[courseName].includes(termNumber)) {
-              courseTermMap[courseName].push(termNumber);
-            }
-          });
-        }
-      }
-    });
-    
-    console.log('Academic history course-term mapping:', courseTermMap);
-    return courseTermMap;
-    
-  } catch (error) {
-    console.error('Error scraping academic history:', error);
-    return {};
-  }
-};
-
-// Standalone authentication function
-const authenticate = async (skywardURL, username, password) => {
-  const loginResponse = await axios({
-    url: '../skyporthttp.w',
-    baseURL: skywardURL,
-    method: 'post',
-    data: `requestAction=eel&codeType=tryLogin&login=${username}&password=${password}`,
-  });
-
-  const { data } = loginResponse;
-  
-  if (data === '<li>Invalid login or password.</li>') {
-    throw new Error('Invalid Skyward credentials');
-  }
-
-  const tokens = data.slice(4, -5).split('^');
-  
-  if (tokens.length < 15) {
-    throw new Error('Malformed auth data');
-  }
-
-  return {
-    dwd: tokens[0],
-    wfaacl: tokens[3],
-    encses: tokens[14],
-    sessionId: `${tokens[1]}%15${tokens[2]}`,
-  };
-};
-
-// Standalone report scraper function (uses username/password)
-export const scrapeReportWithCredentials = async (baseUrl, username, password) => {
-  try {
-    // Step 1: Authenticate
-    const auth = await authenticate(baseUrl, username, password);
-    
-    // Step 2: Get academic history course-term mapping
-    const courseTermMap = await scrapeAcademicHistory(baseUrl, auth);
-    
-    // Step 3: Fetch report card data
-    const response = await axios({
-      url: '../sfgradebook001.w',
-      baseURL: baseUrl,
-      method: 'post',
-      data: `dwd=${auth.dwd}&wfaacl=${auth.wfaacl}&encses=${auth.encses}`,
-    });
-
-    const htmlData = response.data;
-    
-    // Parse and extract data using shared logic
-    return await parseReportData(htmlData, courseTermMap);
-    
-  } catch (error) {
-    throw error;
-  }
-};
 
 // Report scraper function that accepts auth tokens
 export const scrapeReport = async (baseUrl, auth) => {
@@ -300,7 +156,7 @@ export const scrapeReport = async (baseUrl, auth) => {
     const gridObjects = eval(`0 || ${results[1]}`);
 
     // Get full academic history
-  const academicHistory = condenseHistoryData(gridObjects);
+    const academicHistory = condenseHistoryData(gridObjects);
 
     // Get course-term mapping from academic history grid
     let courseTermMap = {};
@@ -362,7 +218,7 @@ export const scrapeReport = async (baseUrl, auth) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     const htmlData = gradebookResponse.data;
-    // fs.writeFileSync('sfgradebook001.html', htmlData);
+    fs.writeFileSync('sfgradebook001.html', htmlData);
 
     if (htmlData.includes('Your session has expired') || htmlData.includes('Your session has timed out')) {
       const err = new Error('Session expired');
@@ -372,6 +228,14 @@ export const scrapeReport = async (baseUrl, auth) => {
 
     // Parse and extract data using shared logic
     const scrapeReportResult = await parseReportData(htmlData, courseTermMap);
+    // Attach extra info to each course in scrapeReportResult.data
+    const extraInfo = extractCourseExtraInfo(htmlData);
+    for (const course of scrapeReportResult.data) {
+      const courseId = course.course ? String(course.course) : null;
+      if (courseId && extraInfo[courseId]) {
+        Object.assign(course, extraInfo[courseId]);
+      }
+    }
 
     // Combine and return
     const combined = combineAcademicHistoryWithScrapeReport(academicHistory, scrapeReportResult);
