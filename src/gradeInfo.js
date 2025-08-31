@@ -54,7 +54,7 @@ export function parseGradeInfo(html) {
       const nameNode = cells[1]?.childNodes?.[0];
       const rawName = clean(nameNode?.textContent || cells[1]?.textContent || "");
       const weightSpan = clean(cells[1]?.querySelector("span")?.textContent || "");
-      const weightMatch = weightSpan.match(/weighted at ([\d.]+)%, adjusted to ([\d.]+)%/i);
+      const weightMatch = weightSpan.match(/weighted at ([\d.]+)%(?:, adjusted to ([\d.]+)%)?/i);
 
       currentCategory = {
         category: rawName,
@@ -114,15 +114,18 @@ export function parseGradeInfo(html) {
     }
   });
 
-  return {
-    course,
-    instructor,
-    lit,
-    period,
-    score: topScore,
-    grade: topGrade,
-    gradebook,
-  };
+    // Filter out categories weighted at 0.00% and with no assignments
+    const filteredGradebook = gradebook.filter(cat => !(cat.weight === 0 && (!cat.assignments || cat.assignments.length === 0)));
+
+    return {
+      course,
+      instructor,
+      lit,
+      period,
+      score: topScore,
+      grade: topGrade,
+      gradebook: filteredGradebook,
+    };
 }
 
 // gradeInfoAPI.js
@@ -193,7 +196,7 @@ class GradeInfo {
       const match = response.data.match(/<output><!\[CDATA\[(.*)\]\]><\/output>/s);
       const html = match && match[1] ? match[1] : response.data;
 
-      // fs.writeFileSync('gradeinfo.html', html);
+      fs.writeFileSync('gradeinfo.html', html);
 
       // Return parsed grade info directly
       return parseGradeInfo(html);
