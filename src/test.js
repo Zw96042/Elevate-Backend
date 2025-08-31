@@ -22,29 +22,29 @@ async function main() {
     const sessionCodes = await getNewSessionCodes(USERNAME, PASSWORD, SKYWARD_BASE_URL);
     console.log('Session codes:', sessionCodes);
 
-  const response = await axios.post(`${BACKEND_URL}/scrape-report`, {
-    dwd: sessionCodes.dwd,
-    encses: sessionCodes.encses,
-    wfaacl: sessionCodes.wfaacl,
-    sessionid: sessionCodes.sessionid,
-    'User-Type': sessionCodes['User-Type'],
-    baseUrl: SKYWARD_BASE_URL
-  });
-    // const params = {
-    //     stuId: '130220', // Essential Student ID (Per student)
-    //     corNumId: '86362', // Essential Course NUM ID (Per class)
-    //     section: '26', // Essential (Per class)
-    //     gbId: '2716956', // Essential Grade book ID (Per class)
-    //     bucket: 'TERM 1', // Essential
-    //     customUrl: SKYWARD_BASE_URL,
-    // };
+//   const response = await axios.post(`${BACKEND_URL}/scrape-report`, {
+//     dwd: sessionCodes.dwd,
+//     encses: sessionCodes.encses,
+//     wfaacl: sessionCodes.wfaacl,
+//     sessionid: sessionCodes.sessionid,
+//     'User-Type': sessionCodes['User-Type'],
+//     baseUrl: SKYWARD_BASE_URL
+//   });
+    const params = {
+        stuId: '130220', // Essential Student ID (Per student)
+        corNumId: '86434', // Essential Course NUM ID (Per class)
+        section: '18', // Essential (Per class)
+        gbId: '2717303', // Essential Grade book ID (Per class)
+        bucket: 'TERM 3', // Essential
+        customUrl: SKYWARD_BASE_URL,
+    };
 
-    // // Step 3: Call /grade-info endpoint
-    // console.log('Calling /grade-info...');
-    // const response = await axios.post(`${BACKEND_URL}/grade-info`, {
-    //   sessionTokens: sessionCodes,
-    //   params,
-    // });
+    // Step 3: Call /grade-info endpoint
+    console.log('Calling /grade-info...');
+    const response = await axios.post(`${BACKEND_URL}/grade-info`, {
+      sessionTokens: sessionCodes,
+      params,
+    });
     console.log('Grade info response:', JSON.stringify(response.data, null, 2));
   } catch (err) {
     console.error('Test failed:', err);

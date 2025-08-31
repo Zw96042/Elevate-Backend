@@ -254,7 +254,6 @@ app.post('/grade-info', async (req, res) => {
   console.log("Grade info request at", now.toLocaleString());
   try {
     // Accept sessionTokens, params, and optional customUrl in request body
-    console.log(req.body);
     const { sessionTokens, params, customUrl } = req.body;
     if (!sessionTokens || !params) {
       return res.status(400).json({ error: 'Missing sessionTokens or params in request body' });
@@ -262,7 +261,6 @@ app.post('/grade-info', async (req, res) => {
     const gradeInfoApi = new gradeInfo(sessionTokens);
     const info = await gradeInfoApi.fetchGradeInfo(params, customUrl);
 
-    // console.log(info);
     return res.json({ success: true, data: info });
   } catch (err) {
     console.error('Error in /grade-info:', err);

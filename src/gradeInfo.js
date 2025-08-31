@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import  fs from 'fs';
 
 // Parser for Skyward grade info HTML/JS response
 export function parseGradeInfo(html) {
@@ -191,6 +192,8 @@ class GradeInfo {
 
       const match = response.data.match(/<output><!\[CDATA\[(.*)\]\]><\/output>/s);
       const html = match && match[1] ? match[1] : response.data;
+
+      // fs.writeFileSync('gradeinfo.html', html);
 
       // Return parsed grade info directly
       return parseGradeInfo(html);
