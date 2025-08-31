@@ -11,15 +11,49 @@ function extractCourseExtraInfo(html) {
     const stuId = idMatch[1];
     const corNumId = idMatch[2];
     const section = idMatch[3];
-    // Find a grade cell for gbID
+    // Find gbID by parsing the sf_gridObjects JS object in the script
     let gbID = null;
-    $(table).find('a[id="showGradeInfo"]').each((_, a) => {
-      const gId = $(a).attr('data-gid');
-      if (gId) {
-        gbID = gId;
-        return false;
+    const script = $("script").filter((_, el) => {
+      return (el.attribs && el.attribs.type === "text/javascript" && $(el).html().includes('sf_gridObjects'));
+    }).html();
+    if (script) {
+      const results = /\$\.extend\(\(sff\.getValue\('sf_gridObjects'\) \|\| {}\), ([\s\S]*)\)\);/.exec(script);
+      if (results) {
+        try {
+          const gridObjects = eval(`0 || ${results[1]}`);
+          // Find the grades grid
+          const values = Object.entries(gridObjects);
+          const targetPair = values.find(([key]) => /stuGradesGrid_\d+_\d+/.test(key));
+          if (targetPair) {
+            const gridData = targetPair[1];
+            if (gridData.tb && gridData.tb.r) {
+              for (const row of gridData.tb.r) {
+                if (row.c && row.c.length > 0) {
+                  for (const cell of row.c) {
+                    if (cell.h) {
+                      const $cell = cheerio.load(cell.h);
+                      const anchor = $cell('a[id="showGradeInfo"]');
+                      if (anchor.length) {
+                        const cni = anchor.attr('data-cni');
+                        const gId = anchor.attr('data-gid');
+                        if (cni === corNumId && gId) {
+                          gbID = gId;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  if (gbID) break;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // ignore parse errors
+        }
       }
-    });
+    }
+
     extraInfo[corNumId] = { stuId, corNumId, section, gbID };
   });
   return extraInfo;
