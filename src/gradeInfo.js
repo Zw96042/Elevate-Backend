@@ -3,6 +3,13 @@ import  fs from 'fs';
 
 // Parser for Skyward grade info HTML/JS response
 export function parseGradeInfo(html) {
+  // Check for empty <data> in XML response (session expired)
+  if (typeof html === 'string' && html.match(/<data><!\[CDATA\[\s*\]\]><\/data>/)) {
+    const err = new Error('Session expired');
+    err.code = 'SESSION_EXPIRED';
+    throw err;
+  }
+
   const dom = new JSDOM(html);
   const document = dom.window.document;
 
