@@ -53,16 +53,88 @@ export function parseGradeInfo(html) {
   const gradebook = [];
   const rows = [...document.querySelectorAll("table[id^='grid_stuAssignmentSummaryGrid'] tbody tr")];
   let currentCategory = null;
+  let lastMainCategory = null;
+  let rcWeights = [];
+  let afterBoldCategory = false;
 
-  rows.forEach((row) => {
-    // Category row
+  rows.forEach((row, idx) => {
+    // Debug: log row type and content
     if (row.classList.contains("sf_Section") && row.classList.contains("cat")) {
       const cells = row.querySelectorAll("td");
       const nameNode = cells[1]?.childNodes?.[0];
       const rawName = clean(nameNode?.textContent || cells[1]?.textContent || "");
-      const weightSpan = clean(cells[1]?.querySelector("span")?.textContent || "");
-      const weightMatch = weightSpan.match(/weighted at ([\d.]+)%(?:, adjusted to ([\d.]+)%)?/i);
+      const isBold = cells[1]?.style?.fontWeight === "bold" || /font-weight:bold/i.test(cells[1]?.getAttribute("style") || "");
+      // Find weight in any span in the cell
+      let weightMatch = null;
+      let foundWeightSpan = '';
+      const spans = cells[1]?.querySelectorAll("span") || [];
+      for (const span of spans) {
+        const txt = clean(span.textContent || "");
+        const match = txt.match(/weighted at ([\d.]+)%(?:, adjusted to ([\d.]+)%)?/i);
+        if (match) {
+          weightMatch = match;
+          foundWeightSpan = txt;
+          break;
+        }
+      }
+      console.log("CATEGORY ROW:", { rawName, isBold, foundWeightSpan, weightMatch });
 
+      // If this is a main category (bold)
+      console.log(`[LOG] Encountered category row: ${rawName}, isBold: ${isBold}`);
+      if (isBold) {
+        console.log(`[LOG] Creating new main category: ${rawName}`);
+        lastMainCategory = {
+          category: rawName,
+          weight: null,
+          adjustedWeight: null,
+          assignments: [],
+        };
+        afterBoldCategory = true;
+        // If weight is present in the bold row, use it
+        if (weightMatch) {
+          lastMainCategory.weight = parseFloat(weightMatch[1]);
+          lastMainCategory.adjustedWeight = weightMatch[2] ? parseFloat(weightMatch[2]) : null;
+          console.log(`[LOG] Assigned weight from bold row to ${rawName}:`, lastMainCategory.weight, lastMainCategory.adjustedWeight);
+        } else {
+          console.log(`[LOG] No weight found in bold row for ${rawName}`);
+        }
+        gradebook.push(lastMainCategory);
+        currentCategory = lastMainCategory;
+        return;
+      }
+
+      // If this is RC1 or RC2 after a bold category, assign weight from RC1 to main category and do not push RC1/RC2 as categories
+      if (/RC\d/i.test(rawName) && afterBoldCategory) {
+        // Use the span search weightMatch for RC rows
+        console.log(`[LOG] Encountered RC row: ${rawName}, weightMatch:`, weightMatch, 'lastMainCategory:', lastMainCategory);
+        // Always assign RC1 weight to the last main category if not set
+        if (/RC1/i.test(rawName) && weightMatch && lastMainCategory && lastMainCategory.weight == null) {
+          lastMainCategory.weight = parseFloat(weightMatch[1]);
+          lastMainCategory.adjustedWeight = weightMatch[2] ? parseFloat(weightMatch[2]) : null;
+          console.log(`[LOG] Assigned weight from RC1 to ${lastMainCategory.category}:`, lastMainCategory.weight, lastMainCategory.adjustedWeight);
+        }
+        // If RC2 comes first, store its weight and assign after RC1
+        if (/RC2/i.test(rawName) && weightMatch && lastMainCategory && lastMainCategory.weight == null) {
+          lastMainCategory._pendingWeight = {
+            weight: parseFloat(weightMatch[1]),
+            adjustedWeight: weightMatch[2] ? parseFloat(weightMatch[2]) : null,
+          };
+          console.log(`[LOG] Pending RC2 weight for ${lastMainCategory.category}:`, lastMainCategory._pendingWeight);
+        }
+        // If RC1 comes and RC2 weight was stored, use RC1 weight, else use RC2
+        if (/RC1/i.test(rawName) && lastMainCategory && lastMainCategory.weight == null && lastMainCategory._pendingWeight) {
+          // Prefer RC1 weight if available, else RC2
+          lastMainCategory.weight = parseFloat(weightMatch[1]);
+          lastMainCategory.adjustedWeight = weightMatch[2] ? parseFloat(weightMatch[2]) : lastMainCategory._pendingWeight.adjustedWeight;
+          console.log(`[LOG] Assigned weight from RC1 (with pending RC2) to ${lastMainCategory.category}:`, lastMainCategory.weight, lastMainCategory.adjustedWeight);
+          delete lastMainCategory._pendingWeight;
+        }
+        console.log(`[LOG] State of lastMainCategory after RC row:`, lastMainCategory);
+        // Do NOT push RC1/RC2 as categories
+        return;
+      }
+
+      // If not bold and not RC1/RC2, treat as normal category
       currentCategory = {
         category: rawName,
         weight: weightMatch ? parseFloat(weightMatch[1]) : null,
@@ -70,6 +142,7 @@ export function parseGradeInfo(html) {
         assignments: [],
       };
       gradebook.push(currentCategory);
+      afterBoldCategory = false;
       return;
     }
 
@@ -77,49 +150,58 @@ export function parseGradeInfo(html) {
     const link = row.querySelector("a#showAssignmentInfo");
     if (link && currentCategory) {
       const cells = row.querySelectorAll("td");
-      // Expected columns for assignment rows:
-      // 0: Due (colspan=2)
-      // 1: Assignment name
-      // 2: Grade (int, e.g., 97)
-      // 3: Score (double percent, e.g., 97.00)
-      // 4: Points Earned (e.g., "48.5 out of 50")
-      // 5: Missing
-      // 6: No Count
-      // 7: Absent
-
       const date = clean(cells[0]?.textContent || "");
       const name = clean(link.textContent || "");
-
       const assignmentGrade = toInt(cells[2]?.textContent || "");
       const assignmentScore = toFloat(cells[3]?.textContent || "");
-
       const pointsText = clean(cells[4]?.textContent || "");
       let points = null;
       const pm = pointsText.match(/(-?\d+(?:\.\d+)?)\s*out of\s*(-?\d+(?:\.\d+)?)/i);
       if (pm) {
         points = { earned: parseFloat(pm[1]), total: parseFloat(pm[2]) };
       }
-
       const meta = [];
       const missingText = clean(cells[5]?.textContent || "");
       if (missingText) meta.push({ type: "missing", note: missingText });
-
       const noCountText = clean(cells[6]?.textContent || "");
       if (noCountText) meta.push({ type: "nocount", note: noCountText });
-
       const absentText = clean(cells[7]?.textContent || "");
       if (absentText) meta.push({ type: "absent", note: absentText });
-
+      console.log("ASSIGNMENT ROW:", { date, name, assignmentGrade, assignmentScore, points });
       currentCategory.assignments.push({
         date,
         name,
-        grade: assignmentGrade,     // int
-        score: assignmentScore,     // double
-        points,                     // { earned: double, total: double } | null
-        meta,                       // [] when none
+        grade: assignmentGrade,
+        score: assignmentScore,
+        points,
+        meta,
       });
     }
+
+    // If next row is not RC1/RC2 or end of rows, assign RC weights to main category if needed
+    const nextRow = rows[idx + 1];
+    const isNextRC = nextRow && nextRow.classList.contains("sf_Section") && nextRow.classList.contains("cat") &&
+      /RC\d/i.test(clean(nextRow.querySelectorAll("td")[1]?.textContent || ""));
+    if (lastMainCategory && lastMainCategory.weight == null && rcWeights.length > 0 && !isNextRC) {
+      const firstWeight = rcWeights.find(w => w.weight != null);
+      if (firstWeight) {
+        lastMainCategory.weight = firstWeight.weight;
+        lastMainCategory.adjustedWeight = firstWeight.adjustedWeight;
+      }
+      rcWeights = [];
+      afterBoldCategory = false;
+    }
   });
+
+    // After all rows, if lastMainCategory still has no weight and rcWeights collected, assign it
+    if (lastMainCategory && lastMainCategory.weight == null && rcWeights.length > 0) {
+      const firstWeight = rcWeights.find(w => w.weight != null);
+      if (firstWeight) {
+        lastMainCategory.weight = firstWeight.weight;
+        lastMainCategory.adjustedWeight = firstWeight.adjustedWeight;
+      }
+      rcWeights = [];
+    }
 
     // Filter out categories weighted at 0.00% and with no assignments
     const filteredGradebook = gradebook.filter(cat => !(cat.weight === 0 && (!cat.assignments || cat.assignments.length === 0)));

@@ -175,7 +175,7 @@ export const scrapeReport = async (baseUrl, auth) => {
     // fs.writeFileSync('academic_history.html', historyHtml);
 
     // Check for session expiration
-    if (historyHtml.includes('Your session has expired') || historyHtml.includes('Your session has timed out')) {
+    if (historyHtml.includes('Your session has expired') || historyHtml.includes('Your session has timed out') || historyHtml.includes('WebSpeed error from WebSpeed ISAPI Messenger(WSISA)') || historyHtml.includes('WebSpeed Agent Error: Agent did not return an HTML page')) {
       const err = new Error('Session expired');
       err.code = 'SESSION_EXPIRED';
       throw err;

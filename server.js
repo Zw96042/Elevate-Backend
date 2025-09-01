@@ -261,6 +261,7 @@ app.post('/grade-info', async (req, res) => {
     const gradeInfoApi = new gradeInfo(sessionTokens);
     const info = await gradeInfoApi.fetchGradeInfo(params, customUrl);
 
+    console.log("Grade info fetched successfully", JSON.stringify(info, null, 2));
     return res.json({ success: true, data: info });
   } catch (err) {
     console.error('Error in /grade-info:', err);
