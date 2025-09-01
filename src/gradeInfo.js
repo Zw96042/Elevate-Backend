@@ -77,12 +77,9 @@ export function parseGradeInfo(html) {
           break;
         }
       }
-      console.log("CATEGORY ROW:", { rawName, isBold, foundWeightSpan, weightMatch });
-
-      // If this is a main category (bold)
-      console.log(`[LOG] Encountered category row: ${rawName}, isBold: ${isBold}`);
+      
       if (isBold) {
-        console.log(`[LOG] Creating new main category: ${rawName}`);
+      
         lastMainCategory = {
           category: rawName,
           weight: null,
@@ -94,9 +91,6 @@ export function parseGradeInfo(html) {
         if (weightMatch) {
           lastMainCategory.weight = parseFloat(weightMatch[1]);
           lastMainCategory.adjustedWeight = weightMatch[2] ? parseFloat(weightMatch[2]) : null;
-          console.log(`[LOG] Assigned weight from bold row to ${rawName}:`, lastMainCategory.weight, lastMainCategory.adjustedWeight);
-        } else {
-          console.log(`[LOG] No weight found in bold row for ${rawName}`);
         }
         gradebook.push(lastMainCategory);
         currentCategory = lastMainCategory;
@@ -106,12 +100,10 @@ export function parseGradeInfo(html) {
       // If this is RC1 or RC2 after a bold category, assign weight from RC1 to main category and do not push RC1/RC2 as categories
       if (/RC\d/i.test(rawName) && afterBoldCategory) {
         // Use the span search weightMatch for RC rows
-        console.log(`[LOG] Encountered RC row: ${rawName}, weightMatch:`, weightMatch, 'lastMainCategory:', lastMainCategory);
         // Always assign RC1 weight to the last main category if not set
         if (/RC1/i.test(rawName) && weightMatch && lastMainCategory && lastMainCategory.weight == null) {
           lastMainCategory.weight = parseFloat(weightMatch[1]);
           lastMainCategory.adjustedWeight = weightMatch[2] ? parseFloat(weightMatch[2]) : null;
-          console.log(`[LOG] Assigned weight from RC1 to ${lastMainCategory.category}:`, lastMainCategory.weight, lastMainCategory.adjustedWeight);
         }
         // If RC2 comes first, store its weight and assign after RC1
         if (/RC2/i.test(rawName) && weightMatch && lastMainCategory && lastMainCategory.weight == null) {
@@ -119,17 +111,14 @@ export function parseGradeInfo(html) {
             weight: parseFloat(weightMatch[1]),
             adjustedWeight: weightMatch[2] ? parseFloat(weightMatch[2]) : null,
           };
-          console.log(`[LOG] Pending RC2 weight for ${lastMainCategory.category}:`, lastMainCategory._pendingWeight);
         }
         // If RC1 comes and RC2 weight was stored, use RC1 weight, else use RC2
         if (/RC1/i.test(rawName) && lastMainCategory && lastMainCategory.weight == null && lastMainCategory._pendingWeight) {
           // Prefer RC1 weight if available, else RC2
           lastMainCategory.weight = parseFloat(weightMatch[1]);
           lastMainCategory.adjustedWeight = weightMatch[2] ? parseFloat(weightMatch[2]) : lastMainCategory._pendingWeight.adjustedWeight;
-          console.log(`[LOG] Assigned weight from RC1 (with pending RC2) to ${lastMainCategory.category}:`, lastMainCategory.weight, lastMainCategory.adjustedWeight);
           delete lastMainCategory._pendingWeight;
         }
-        console.log(`[LOG] State of lastMainCategory after RC row:`, lastMainCategory);
         // Do NOT push RC1/RC2 as categories
         return;
       }
@@ -167,7 +156,6 @@ export function parseGradeInfo(html) {
       if (noCountText) meta.push({ type: "nocount", note: noCountText });
       const absentText = clean(cells[7]?.textContent || "");
       if (absentText) meta.push({ type: "absent", note: absentText });
-      console.log("ASSIGNMENT ROW:", { date, name, assignmentGrade, assignmentScore, points });
       currentCategory.assignments.push({
         date,
         name,
