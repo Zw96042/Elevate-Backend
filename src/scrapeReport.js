@@ -273,6 +273,7 @@ export const scrapeReport = async (baseUrl, auth) => {
 
     // Combine and return
     const combined = combineAcademicHistoryWithScrapeReport(academicHistory, scrapeReportResult);
+    console.log('Combined report DONE!');
     return combined;
   } catch (error) {
     throw error;

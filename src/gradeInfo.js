@@ -150,12 +150,12 @@ export function parseGradeInfo(html) {
         points = { earned: parseFloat(pm[1]), total: parseFloat(pm[2]) };
       }
       const meta = [];
-      const missingText = clean(cells[5]?.textContent || "");
-      if (missingText) meta.push({ type: "missing", note: missingText });
-      const noCountText = clean(cells[6]?.textContent || "");
-      if (noCountText) meta.push({ type: "nocount", note: noCountText });
-      const absentText = clean(cells[7]?.textContent || "");
-      if (absentText) meta.push({ type: "absent", note: absentText });
+      const missingTooltip = cells[5]?.getAttribute('tooltip');
+      if (missingTooltip) meta.push({ type: "missing", note: missingTooltip });
+      const noCountTooltip = cells[6]?.getAttribute('tooltip');
+      if (noCountTooltip) meta.push({ type: "noCount", note: noCountTooltip });
+      const absentTooltip = cells[7]?.getAttribute('tooltip');
+      if (absentTooltip) meta.push({ type: "absent", note: absentTooltip });
       currentCategory.assignments.push({
         date,
         name,
