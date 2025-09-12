@@ -269,7 +269,16 @@ class GradeInfo {
           'Cookie': `LoginHistoryIdentifier-stg_jjzapfiqctlLkMda${stuId}=${this.userType}`
         },
       });
-
+      
+      // Check for session timeout in raw response data
+      if (typeof response.data === 'string' && (
+        response.data.includes("Your session has timed out") ||
+        response.data.includes('window.close()') ||
+        (response.data.includes('<script') && response.data.includes('session') && response.data.includes('timed out'))
+      )) {
+       throw new Error('Session expired');
+      }
+      
       const match = response.data.match(/<output><!\[CDATA\[(.*)\]\]><\/output>/s);
       const html = match && match[1] ? match[1] : response.data;
 

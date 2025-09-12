@@ -75,7 +75,7 @@ app.post('/auth', async (req, res) => {
     }
 
     const codes = await authenticate(user, pass, baseUrl);
-    console.log(codes);
+    // console.log(codes);
     res.json(codes);
   } catch (err) {
     console.error('Error authenticating:', err);
@@ -95,10 +95,10 @@ app.get('/grades', async (req, res) => {
     let codes = await getValidSession(user, pass, baseUrl);
     let html = await fetchGradebook(baseUrl, codes);
 
-    if (html.includes('Your session has expired and you have been logged out.')) {
-      codes = await authenticate(user, pass, baseUrl);
-      html = await fetchGradebook(baseUrl, codes);
-    }
+    // if (html.includes('Your session has expired and you have been logged out.')) {
+    //   codes = await authenticate(user, pass, baseUrl);
+    //   html = await fetchGradebook(baseUrl, codes);
+    // }
 
     const gridObjects = extractSfGridObjectsFromExtend(html);
     const gradeGridKey = Object.keys(gridObjects).find(k => k.toLowerCase().includes('stugrades'));
@@ -110,8 +110,13 @@ app.get('/grades', async (req, res) => {
 
     res.json(organized);
   } catch (err) {
-    console.error('Error fetching grades:', err);
-    res.status(500).json({ error: err.message });
+    if (err.code === 'SESSION_EXPIRED') {
+      console.log("Session expired detected in /grades");
+      res.status(401).json({ error: 'Session expired. Please authenticate again.' });
+    } else {
+      console.error('Error fetching grades:', err);
+      res.status(500).json({ error: err.message });
+    }
   }
 });
 
@@ -119,7 +124,7 @@ app.get('/grades', async (req, res) => {
 app.post('/messages', async (req, res) => {
   try {
     const now = new Date();
-    console.log("Initial message request at", now.toLocaleString());
+    console.log("Message request at", now.toLocaleString());
     const { dwd, encses, sessionid, wfaacl, baseUrl, 'User-Type': userType } = req.body;
 
     if (!dwd || !encses || !sessionid || !wfaacl || !baseUrl) {
@@ -139,10 +144,12 @@ app.post('/messages', async (req, res) => {
   } catch (err) {
     if (err.message.includes('Session expired')) {
         // throw new Error("Session Expired");
+      console.log("Session expired detected in /messages");
       res.status(401).send({ error: 'Session expired. Please authenticate again.' });
     } else {
         // throw err;
       res.status(500).send({ error: err.message });
+      console.error('Error fetching messages:', err);
     }
   }
 });
@@ -165,10 +172,12 @@ app.post('/next-messages', async (req, res) => {
   } catch (err) {
     if (err.message.includes('Session expired')) {
         // throw new Error("Session Expired");
+      console.log("Session expired detected in /next-messages");
       res.status(401).send({ error: 'Session expired. Please authenticate again.' });
     } else {
         // throw err;
       res.status(500).send({ error: err.message });
+      console.error('Error fetching messages:', err);
     }
   }
 });
@@ -192,6 +201,7 @@ app.post('/history', async (req, res) => {
     res.json(academicData);
   } catch (err) {
     if (err.message.includes('Session expired') || err.message.includes('Authentication failed')) {
+      console.log("Session expired detected in /history");
       res.status(401).json({ error: 'Session expired. Please authenticate again.' });
     } else {
       console.error('Error fetching academic history:', err);
@@ -231,9 +241,8 @@ app.post('/scrape-report', async (req, res) => {
     });
   
   } catch (err) {
-    console.error('Error scraping report:', err);
-    
     if (err.code === 'SESSION_EXPIRED' || err.message.includes('Session expired')) {
+      console.log("Session expired detected in /scrape-report");
       res.status(401).json({
         success: false,
         error: 'session_expired',
@@ -244,6 +253,7 @@ app.post('/scrape-report', async (req, res) => {
         success: false, 
         error: err.message 
       });
+      console.error('Error fetching grade info:', err);
     }
   }
 });
@@ -261,11 +271,20 @@ app.post('/grade-info', async (req, res) => {
     const gradeInfoApi = new gradeInfo(sessionTokens);
     const info = await gradeInfoApi.fetchGradeInfo(params, customUrl);
 
-    console.log("Grade info fetched successfully", JSON.stringify(info, null, 2));
+    // console.log("Grade info fetched successfully", JSON.stringify(info, null, 2));
     return res.json({ success: true, data: info });
   } catch (err) {
-    console.error('Error in /grade-info:', err);
-    return res.status(500).json({ success: false, error: err.message });
+    
+    if (err.code === 'SESSION_EXPIRED' || err.message.includes('Session expired')) {
+      console.log("Session expired detected in /grade-info");
+      return res.status(401).json({ 
+        success: false, 
+        error: 'session_expired',
+        message: 'Session expired. Please re-authenticate.' 
+      });
+    } else {
+      return res.status(500).json({ success: false, error: err.message });
+    }
   }
 });
 

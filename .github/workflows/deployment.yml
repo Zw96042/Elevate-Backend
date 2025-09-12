@@ -25,6 +25,7 @@ jobs:
               -o IdentitiesOnly=yes \
               ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             cd /home/opc/Elevate-Backend
+            git reset --hard HEAD
             git pull origin main
             npm install
             pm2 restart elevate-backend
