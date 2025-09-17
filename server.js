@@ -288,6 +288,10 @@ app.post('/grade-info', async (req, res) => {
   }
 });
 
+app.post('/health', async (req, res) => {
+  return res.json({ status: 'ok', timestamp: new Date().toISOString(), data: "ALL GOOD" });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Skyward backend API listening on port ${PORT}`);
 });
