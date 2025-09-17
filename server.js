@@ -292,6 +292,13 @@ app.post('/health', async (req, res) => {
   return res.json({ status: 'ok', timestamp: new Date().toISOString(), data: "ALL GOOD" });
 });
 
+app.options("*", (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.sendStatus(200);
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Skyward backend API listening on port ${PORT}`);
 });
