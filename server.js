@@ -288,7 +288,7 @@ app.post('/grade-info', async (req, res) => {
   }
 });
 
-app.post('/health', async (req, res) => {
+app.get('/health', async (req, res) => {
   return res.json({ status: 'ok', timestamp: new Date().toISOString(), data: "ALL GOOD" });
 });
 
